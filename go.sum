@@ -1,0 +1,6 @@
+github.com/go-telegram/bot v1.6.1 h1:jiIYq8Z7HfL4nZ+rPpCBMPWLvll04LLxaGs/DleWnbU=
+github.com/go-telegram/bot v1.6.1/go.mod h1:i2TRs7fXWIeaceF3z7KzsMt/he0TwkVC680mvdTFYeM=
+github.com/go-telegram/ui v0.3.2 h1:KaSSYSz3Czs/yebwkkv5OOLnq7KwvL4q0uod20R4fC0=
+github.com/go-telegram/ui v0.3.2/go.mod h1:QbZbHcP+Ge9T/vypsmkAzedtzLO1sobK4zEACDgRwJA=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
