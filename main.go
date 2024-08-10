@@ -8,18 +8,9 @@ import (
 	"os/signal"
 
 	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
-	"github.com/go-telegram/ui/dialog"
 	"github.com/joho/godotenv"
-)
-
-var (
-	dialogNodes = []dialog.Node{
-		{ID: "start", Text: "Start Node", Keyboard: [][]dialog.Button{{{Text: "Go to node 2", NodeID: "2"}, {Text: "Go to node 3", NodeID: "3"}}, {{Text: "Go Telegram UI", URL: "https://github.com/go-telegram/ui"}}}},
-		{ID: "2", Text: "node 2 without keyboard"},
-		{ID: "3", Text: "node 3", Keyboard: [][]dialog.Button{{{Text: "Go to start", NodeID: "start"}, {Text: "Go to node 4", NodeID: "4"}}}},
-		{ID: "4", Text: "node 4", Keyboard: [][]dialog.Button{{{Text: "Back to 3", NodeID: "3"}}}},
-	}
+	"techybat.org/go-vpn/controllers"
+	"techybat.org/go-vpn/database"
 )
 
 func main() {
@@ -29,13 +20,15 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	database.Setup()
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
 	opts := []bot.Option{
-		bot.WithDefaultHandler(handlerDialogInline),
+		bot.WithDefaultHandler(controllers.MainController),
 	}
 
 	b, err := bot.New(telegramBotToken, opts...)
@@ -46,10 +39,4 @@ func main() {
 	}
 
 	b.Start(ctx)
-}
-
-func handlerDialogInline(ctx context.Context, b *bot.Bot, update *models.Update) {
-	p := dialog.New(dialogNodes, dialog.Inline())
-
-	p.Show(ctx, b, update.Message.Chat.ID, "start")
 }
