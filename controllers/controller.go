@@ -66,7 +66,7 @@ func NewDialog() []dialog.Node {
 		packsNode := dialog.Node{
 			ID:       strCatID,
 			Text:     fmt.Sprintf("دسته بندی:%s\nتوضیحات:%s\nبسته مورد نظر خود را انتخاب کنید", category.Name, category.Description),
-			Keyboard: make([][]dialog.Button, len(packs)+1, 1),
+			Keyboard: make([][]dialog.Button, len(packs)+1),
 		}
 
 		packsNode.Keyboard[len(packs)] = make([]dialog.Button, 1)
