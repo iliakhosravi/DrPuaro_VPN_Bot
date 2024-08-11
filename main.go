@@ -29,6 +29,7 @@ func main() {
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(controllers.MainController),
+		bot.WithCallbackQueryDataHandler("mainpack_", bot.MatchTypePrefix, controllers.BuyController),
 	}
 
 	b, err := bot.New(telegramBotToken, opts...)
