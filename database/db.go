@@ -57,6 +57,7 @@ func MigrateAll(db *gorm.DB) {
 	migrations := []models.Model{
 		&models.Category{},
 		&models.Pack{},
+		&models.Card{},
 	}
 
 	for _, migration := range migrations {
