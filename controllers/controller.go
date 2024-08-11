@@ -80,7 +80,7 @@ func NewDialog() []dialog.Node {
 
 			strPackID := "pack_" + strconv.FormatUint(uint64(pack.ID), 10)
 			packsNode.Keyboard[j][0] = dialog.Button{
-				Text:   fmt.Sprintf("حجم %d گیگابایت | %d روزه | %d تومان", pack.Traffic, pack.Period, pack.Price),
+				Text:   pack.String(),
 				NodeID: strPackID,
 			}
 		}
