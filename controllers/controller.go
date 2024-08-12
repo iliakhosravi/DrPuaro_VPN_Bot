@@ -13,6 +13,11 @@ import (
 )
 
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	if update.Message != nil {
+		var user models.User
+		user.CreateOrFindUserByTelegram(database.GetDB(), update.Message.From)
+	}
+
 	p := dialog.New(NewDialog(), dialog.Inline(), dialog.WithPrefix("main"))
 
 	p.Show(ctx, b, update.Message.Chat.ID, "start")
@@ -59,7 +64,7 @@ func NewDialog() []dialog.Node {
 			Text:   category.Name,
 			NodeID: strCatID,
 		}
-		//TODO: Create packs node according to category.ID
+
 		var packs []models.Pack
 		db.Find(&packs, models.Pack{CategoryID: category.ID})
 
