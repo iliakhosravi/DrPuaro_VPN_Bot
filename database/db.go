@@ -48,6 +48,8 @@ func GetDB() *gorm.DB {
 		sqlDB.SetConnMaxLifetime(time.Hour)
 
 		db = dbInstance
+
+		// db.Logger = logger.Default.LogMode(logger.Info)
 	})
 
 	return db

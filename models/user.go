@@ -31,3 +31,11 @@ func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) e
 	}
 	return nil
 }
+
+func (user *User) FirstSentOrder(db *gorm.DB, order *Order) error {
+	if result := db.Where(&Order{Type: SentOrder, UserID: user.ID}).First(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to find sent order: %v", result.Error)
+	}
+
+	return nil
+}

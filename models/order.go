@@ -10,11 +10,12 @@ import (
 type OrderType int
 
 const (
-	Sent OrderType = iota
-	Pending
-	Active
-	Depleted
-	Cancelled
+	UndefinedOrder OrderType = iota
+	SentOrder
+	PendingOrder
+	ActiveOrder
+	DepletedOrder
+	CancelledOrder
 )
 
 type Order struct {
@@ -39,18 +40,14 @@ func (order *Order) CreateOrder(db *gorm.DB) error {
 	return nil
 }
 
-func (order *Order) FindSent(db *gorm.DB) error {
-	if result := db.First(order, &Order{Type: Sent}); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to find sent order: %v", result.Error)
-	}
-
-	return nil
-}
-
 func (order *Order) AddReceiptByMsg(db *gorm.DB, msg *tmodels.Message) (*Receipt, error) {
 	receipt := Receipt{
 		OrderID:   order.ID,
 		MessageID: msg.ID,
+	}
+	order.Type = PendingOrder
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return nil, fmt.Errorf("unable to update order: %v", result.Error)
 	}
 
 	if result := db.Create(&receipt); result.RowsAffected == 0 {
