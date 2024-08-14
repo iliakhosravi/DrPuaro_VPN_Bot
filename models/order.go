@@ -16,6 +16,7 @@ const (
 	ActiveOrder
 	DepletedOrder
 	CancelledOrder
+	UnacceptedOrder
 )
 
 type Order struct {
@@ -47,7 +48,7 @@ func (order *Order) AddReceiptByMsg(db *gorm.DB, msg *tmodels.Message) (*Receipt
 	}
 	order.Type = PendingOrder
 	if result := db.Save(order); result.RowsAffected == 0 {
-		return nil, fmt.Errorf("unable to update order: %v", result.Error)
+		return nil, fmt.Errorf("unable to pend the order: %v", result.Error)
 	}
 
 	if result := db.Create(&receipt); result.RowsAffected == 0 {
@@ -55,4 +56,12 @@ func (order *Order) AddReceiptByMsg(db *gorm.DB, msg *tmodels.Message) (*Receipt
 	}
 
 	return &receipt, nil
+}
+
+func (order *Order) CancelOrder(db *gorm.DB) error {
+	order.Type = CancelledOrder
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to cancel order: %v", result.Error)
+	}
+	return nil
 }

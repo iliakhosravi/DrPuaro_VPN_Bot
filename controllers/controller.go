@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
-	"github.com/go-telegram/ui/dialog"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 )
@@ -17,9 +17,11 @@ func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		var user models.User
 		user.CreateOrFindUserByTelegram(database.GetDB(), update.Message.From)
 	}
+	ShowMainDialog(ctx, b, update)
+}
 
-	p := dialog.New(NewDialog(), dialog.Inline(), dialog.WithPrefix("main"))
-
+func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	p := dialog.New(NewDialog(), dialog.Inline())
 	p.Show(ctx, b, update.Message.Chat.ID, "start")
 }
 
@@ -83,10 +85,12 @@ func NewDialog() []dialog.Node {
 		for j, pack := range packs {
 			packsNode.Keyboard[j] = make([]dialog.Button, 1)
 
-			strPackID := "pack_" + strconv.FormatUint(uint64(pack.ID), 10)
+			strPackID := strconv.FormatUint(uint64(pack.ID), 10)
 			packsNode.Keyboard[j][0] = dialog.Button{
-				Text:   pack.String(),
-				NodeID: strPackID,
+				ID:              "pack_" + strPackID,
+				Text:            pack.String(),
+				CallbackHandler: BuyController,
+				CallbackData:    strPackID,
 			}
 		}
 
