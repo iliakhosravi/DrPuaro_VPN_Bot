@@ -37,7 +37,7 @@ func NewDialog() []dialog.Node {
 					{Text: "درباره ما", NodeID: "about us"},
 				},
 				{
-					{Text: "نحوه اتصال", URL: "https://github.com/go-telegram/ui"},
+					{Text: "نحوه اتصال", URL: "https://github.com/sinasadeghi83/go-telegram-bot-ui"},
 				},
 			},
 		},

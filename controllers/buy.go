@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
-	"github.com/go-telegram/ui/keyboard/reply"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 )
