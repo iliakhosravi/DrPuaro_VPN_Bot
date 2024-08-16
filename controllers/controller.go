@@ -26,11 +26,11 @@ func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			Selective:      false,
 		},
 	})
-	p := dialog.New(NewDialog(), dialog.Inline())
+	p := dialog.New(NewMainDialog(), dialog.Inline())
 	p.Show(ctx, b, update.Message.Chat.ID, "start")
 }
 
-func NewDialog() []dialog.Node {
+func NewMainDialog() []dialog.Node {
 	db := database.GetDB()
 	dialogNodes := []dialog.Node{
 		{
