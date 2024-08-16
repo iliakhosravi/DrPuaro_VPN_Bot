@@ -13,14 +13,19 @@ import (
 )
 
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	if update.Message != nil {
-		var user models.User
-		user.CreateOrFindUserByTelegram(database.GetDB(), update.Message.From)
-	}
 	ShowMainDialog(ctx, b, update)
 }
 
 func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	b.SendMessage(ctx, &bot.SendMessageParams{
+
+		ChatID: update.Message.Chat.ID,
+		Text:   "خوش آمدید",
+		ReplyMarkup: tmodels.ReplyKeyboardRemove{
+			RemoveKeyboard: true,
+			Selective:      false,
+		},
+	})
 	p := dialog.New(NewDialog(), dialog.Inline())
 	p.Show(ctx, b, update.Message.Chat.ID, "start")
 }

@@ -7,12 +7,20 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserType string
+
+const (
+	NoramlUser UserType = "normal"
+	AdminUser  UserType = "admin"
+)
+
 type User struct {
 	BaseModel
 	TelID     int64
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
+	FirstName string   `json:"first_name"`
+	LastName  string   `json:"last_name"`
+	Username  string   `json:"username"`
+	Type      UserType `json:"user_type" gorm:"default:normal"`
 }
 
 func (user *User) Migrate(db *gorm.DB) {
@@ -26,6 +34,14 @@ func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) e
 	user.Username = tuser.Username
 	user.TelID = tuser.ID
 
+	if result := db.Save(user); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to create user: %v", result.Error)
+	}
+	return nil
+}
+
+func (user *User) MakeAdmin(db *gorm.DB) error {
+	user.Type = AdminUser
 	if result := db.Save(user); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to create user: %v", result.Error)
 	}

@@ -10,13 +10,13 @@ import (
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
 )
 
 func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	var user models.User
-	user.CreateOrFindUserByTelegram(db, &update.CallbackQuery.From)
+	user := ctx.Value(auth.UserKey).(models.User)
 	// answering callback query first to let Telegram know that we received the callback query,
 	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
 	// as it thinks the callback query doesn't reach to our application. learn more by
@@ -68,8 +68,6 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	cancelReplyKeyboard := reply.New(
 		b,
 		reply.WithPrefix("cancel_order_keyboard"),
-		reply.IsSelective(),
-		reply.IsOneTimeKeyboard(),
 	).Button(cancelBtnText, b, bot.MatchTypeExact, onCancelbuy)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
@@ -90,8 +88,7 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 func RetrieveUserReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 
-	var user models.User
-	user.CreateOrFindUserByTelegram(db, update.Message.From)
+	user := ctx.Value(auth.UserKey).(models.User)
 
 	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
 		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
@@ -130,8 +127,7 @@ func RetrieveUserReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update
 
 func onCancelbuy(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	var user models.User
-	user.CreateOrFindUserByTelegram(db, update.Message.From)
+	user := ctx.Value(auth.UserKey).(models.User)
 
 	txtMsg := "خرید شما با موفقیت لغو شد"
 	var order models.Order

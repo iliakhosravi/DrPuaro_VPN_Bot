@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"techybat.org/go-vpn/controllers"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/middlewares/auth"
 )
 
 func main() {
@@ -28,7 +29,9 @@ func main() {
 	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
 	opts := []bot.Option{
+		bot.WithMiddlewares(auth.UserMiddleware),
 		bot.WithDefaultHandler(controllers.MainController),
+		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(controllers.AdminController)),
 	}
 
 	b, err := bot.New(telegramBotToken, opts...)
