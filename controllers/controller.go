@@ -8,6 +8,7 @@ import (
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
+	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 )
@@ -48,6 +49,12 @@ func NewMainDialog() []dialog.Node {
 		},
 	}
 
+	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, BuyController)...)
+
+	return dialogNodes
+}
+
+func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node {
 	packNodes := make([]dialog.Node, 0)
 
 	var categories []models.Category
@@ -94,7 +101,7 @@ func NewMainDialog() []dialog.Node {
 			packsNode.Keyboard[j][0] = dialog.Button{
 				ID:              "pack_" + strPackID,
 				Text:            pack.String(),
-				CallbackHandler: BuyController,
+				CallbackHandler: packHandler,
 				CallbackData:    strPackID,
 			}
 		}
@@ -102,8 +109,5 @@ func NewMainDialog() []dialog.Node {
 		packNodes = append(packNodes, packsNode)
 	}
 
-	dialogNodes = append(dialogNodes, packNodes...)
-	dialogNodes = append(dialogNodes, catNode)
-
-	return dialogNodes
+	return append(packNodes, catNode)
 }
