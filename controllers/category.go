@@ -9,6 +9,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/tools/escaper"
 )
 
 type CategoryKey string
@@ -46,7 +47,7 @@ func catNameController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	handlerID := ctx.Value(middlewares.HandlerID).(*string)
 
 	category := ctx.Value(CAT_KEY).(*models.Category)
-	category.Name = update.Message.Text
+	category.Name = escaper.EscapeToMark(update.Message.Text)
 
 	b.UnregisterHandler(*handlerID)
 	*handlerID = b.RegisterHandlerMatchFunc(checkUserMatch(update, cancelBtnText), passCategory(passHandlerID(catDescController, handlerID), category))
@@ -61,7 +62,7 @@ func catDescController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	handlerID := ctx.Value(middlewares.HandlerID).(*string)
 
 	category := ctx.Value(CAT_KEY).(*models.Category)
-	category.Description = update.Message.Text
+	category.Description = escaper.EscapeToMark(update.Message.Text)
 
 	b.UnregisterHandler(*handlerID)
 
