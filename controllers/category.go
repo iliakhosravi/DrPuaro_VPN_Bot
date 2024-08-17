@@ -25,7 +25,7 @@ func AddCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	}
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
-	form := form.CreateForm(cancelBtnText, fields, chatID, userID, catSubmitController, onCancelCat)
+	form := form.CreateForm(cancelBtnText, fields, chatID, userID, catSubmitController, onCancelCat, nil)
 
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
@@ -51,13 +51,19 @@ func catSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
+		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
 
-	ShowAdminDialog(ctx, b, update)
+	ShowAdminDialog(ctx, b, update, form.ChatID)
 }
 
 func onCancelCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	ShowAdminDialog(ctx, b, update)
+	var chatID int64
+	if update.CallbackQuery != nil {
+		chatID = update.CallbackQuery.Message.Message.Chat.ID
+	} else {
+		chatID = update.Message.Chat.ID
+	}
+	ShowAdminDialog(ctx, b, update, chatID)
 }
