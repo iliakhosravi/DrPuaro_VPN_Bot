@@ -10,16 +10,25 @@ import (
 )
 
 func AdminController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	ShowAdminDialog(ctx, b, update)
+	var chatID int64
+	if update.CallbackQuery != nil {
+		chatID = update.CallbackQuery.Message.Message.Chat.ID
+	} else {
+		chatID = update.Message.Chat.ID
+	}
+	ShowAdminDialog(ctx, b, update, chatID)
 }
 
-func ShowAdminDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+func ShowAdminDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update, chatID int64) {
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
+		ChatID: chatID,
 		Text:   "Welcome to admin panel!",
+		ReplyMarkup: tmodels.ReplyKeyboardRemove{
+			RemoveKeyboard: true,
+		},
 	})
 	p := dialog.New(NewAdminDialog(ctx), dialog.Inline())
-	p.Show(ctx, b, update.Message.Chat.ID, "admin-panel")
+	p.Show(ctx, b, chatID, "admin-panel")
 }
 
 func NewAdminDialog(ctx context.Context) []dialog.Node {
@@ -51,7 +60,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{Text: "ویرایش دسته بندی"},
 				},
 				{
-					{Text: "افزودن بسته"},
+					{ID: "add-pack", Text: "افزودن بسته", CallbackHandler: auth.AdminMiddleware(AddPackController)},
 					{Text: "ویرایش بسته"},
 				},
 				{
@@ -62,13 +71,3 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 	}
 	return dialogNodes
 }
-
-// func AddCatMiddleware(next bot.HandlerFunc, adminCtx context.Context) bot.HandlerFunc {
-// 	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
-// 		if update.CallbackQuery.From.ID != ctx.Value(auth.UserKey).(tmodels.User).ID {
-// 			return
-// 		}
-
-// 		return next(ctx, )
-// 	}
-// }
