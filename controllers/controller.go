@@ -14,6 +14,9 @@ import (
 )
 
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	if update.CallbackQuery != nil {
+		return
+	}
 	ShowMainDialog(ctx, b, update)
 }
 
@@ -84,7 +87,7 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 
 		packsNode := dialog.Node{
 			ID:       strCatID,
-			Text:     fmt.Sprintf("دسته بندی:%s\nتوضیحات:%s\nبسته مورد نظر خود را انتخاب کنید", category.Name, category.Description),
+			Text:     bot.EscapeMarkdown(fmt.Sprintf("دسته بندی:%s\nتوضیحات:%s\nبسته مورد نظر خود را انتخاب کنید", category.Name, category.Description)),
 			Keyboard: make([][]dialog.Button, len(packs)+1),
 		}
 
