@@ -10,10 +10,6 @@ import (
 	"techybat.org/go-vpn/widgets/form"
 )
 
-type CategoryKey string
-
-const CAT_KEY CategoryKey = "category-key"
-
 var cancelBtnText string = "انصراف"
 
 func AddCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
