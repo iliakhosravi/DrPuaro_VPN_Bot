@@ -37,6 +37,7 @@ type Form struct {
 	Description      string
 	ManageHandlerID  string
 	ManageBtnPrefix  string
+	lastMsgID        int
 }
 
 type Field struct {
@@ -131,22 +132,19 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	b.UnregisterHandler(form.HandlerID)
 
+	if !form.isFirstField() {
+		b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+			ChatID:      form.ChatID,
+			MessageID:   form.lastMsgID,
+			ReplyMarkup: nil,
+		})
+	}
+
 	if !form.hasField() {
 		b.UnregisterHandler(form.ManageHandlerID)
 		ctx = context.WithValue(ctx, FORM_KEY, form)
 		form.SubmitHandler(ctx, b, update)
 		return
-	}
-
-	if !form.isFirstField() {
-		field := form.currentField()
-		if field.Type == ButtonField {
-			b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
-				ChatID:      form.ChatID,
-				MessageID:   update.CallbackQuery.Message.Message.ID,
-				ReplyMarkup: nil,
-			})
-		}
 	}
 
 	nextField := form.nextField()
@@ -164,7 +162,9 @@ func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels
 
 	params.ReplyMarkup = form.buildKB()
 
-	b.SendMessage(ctx, params)
+	if msg, err := b.SendMessage(ctx, params); err == nil {
+		form.lastMsgID = msg.ID
+	}
 }
 
 func (form *Form) buildKB() *tmodels.InlineKeyboardMarkup {
@@ -201,6 +201,12 @@ func (form *Form) onManage(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 		ShowAlert:       false,
+	})
+
+	b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:      form.ChatID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		ReplyMarkup: nil,
 	})
 
 	data := strings.TrimPrefix(update.CallbackQuery.Data, form.ManageBtnPrefix)
