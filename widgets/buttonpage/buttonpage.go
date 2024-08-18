@@ -59,7 +59,6 @@ func (buttonPage *ButtonPage) initNodes() {
 				Text:     bot.EscapeMarkdown(fmt.Sprintf("%s\n(%d/%d)", buttonPage.Title, page, pagesCount)),
 				Keyboard: [][]dialog.Button{},
 			}
-			fmt.Println("Page ID:", currentNode.ID)
 		}
 		currentNode.Keyboard = append(currentNode.Keyboard, []dialog.Button{btn})
 	}
