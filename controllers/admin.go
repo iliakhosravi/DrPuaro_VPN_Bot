@@ -43,7 +43,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{Text: "مدیریت دکمه های راهنما", NodeID: "help-btns"},
 				},
 				{
-					{Text: "بررسی درخواست های خرید", NodeID: "buy-requests"},
+					{ID: "verify-buy-requests", Text: "بررسی درخواست های خرید", CallbackHandler: auth.AdminMiddleware(VerifyBuyController)},
 					{Text: "کانفیگ های خریداری شده", NodeID: "bought-configs"},
 				},
 				{

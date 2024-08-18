@@ -55,3 +55,7 @@ func (user *User) FirstSentOrder(db *gorm.DB, order *Order) error {
 
 	return nil
 }
+
+func (user *User) Fullname() string {
+	return user.FirstName + " " + user.LastName
+}

@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/widgets/buttonpage"
+	"techybat.org/go-vpn/widgets/form"
 )
 
 func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -148,4 +152,139 @@ func onCancelbuy(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	})
 
 	ShowMainDialog(ctx, b, update)
+}
+
+func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	var orders []models.Order
+	db.Where(models.Order{Type: models.PendingOrder}).Preload("Pack").Find(&orders)
+
+	orderBtns := []dialog.Button{}
+
+	for _, order := range orders {
+		orderBtns = append(orderBtns, dialog.Button{
+			ID:              fmt.Sprintf("Order%d", order.ID),
+			Text:            order.Pack.String(),
+			CallbackHandler: onWatchOrder,
+			CallbackData:    strconv.FormatUint(uint64(order.ID), 10),
+		})
+	}
+
+	buttonPage := buttonpage.CreateButtonPage("لیست درخواست های ارسالی:", orderBtns, 5, true)
+
+	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
+}
+
+func onWatchOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+
+	orderID, _ := strconv.ParseUint(update.CallbackQuery.Data, 10, 0)
+	var order models.Order
+	db.Where(orderID).Preload("User").Preload("Pack").Preload("Pack.Category").Find(&order)
+
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	_, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+		ChatID:     chatID,
+		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		MessageID:  order.GetReceipt(db).MessageID,
+	})
+
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "خطایی پیش آمده یا درخواست ارسالی دردسترس نمی باشد",
+		})
+	}
+
+	txtMsg := fmt.Sprintf("شماره رسید:%d\nنام کاربر:%s\nآیدی کاربر:%d\nنام کاربری:%s\n\nبسته درخواستی:%s\nگروه بسته درخواستی:%s\n",
+		order.GetReceipt(db).ID,
+		order.User.Fullname(),
+		order.User.TelID,
+		order.User.Username,
+		order.Pack.String(),
+		order.Pack.Category.Name,
+	)
+
+	fields := []form.Field{
+		{
+			Name:        "order",
+			MessageText: txtMsg,
+			Type:        form.ButtonField,
+			Keyboard: [][]tmodels.InlineKeyboardButton{
+				{
+					{
+						Text:         "تایید✅",
+						CallbackData: "true_" + update.CallbackQuery.Data,
+					},
+					{
+						Text:         "رد🚫",
+						CallbackData: "false_" + update.CallbackQuery.Data,
+					},
+				},
+			},
+		},
+
+		{
+			Name:        "carry_msg",
+			MessageText: "در جواب چه پیامی به کاربر ارسال شود؟",
+			Type:        form.TextField,
+		},
+	}
+	form := form.CreateForm("انصراف از ادامه پروسه", fields, chatID, update.CallbackQuery.From.ID, onSubmitOrder, onCancelOrder, nil)
+	form.Description = "شروع"
+	form.Show(ctx, b, update)
+}
+
+func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	form := ctx.Value(form.FORM_KEY).(*form.Form)
+	db := database.GetDB()
+	orderField := form.FindField("order").Value
+	splitedOrderField := strings.Split(orderField, "_")
+	ok, strOrderID := splitedOrderField[0], splitedOrderField[1]
+	orderID, _ := strconv.ParseUint(strOrderID, 10, 0)
+	var order models.Order
+	db.Preload("User").Preload("Pack").First(&order, orderID)
+
+	var txtMsg, orderResult string
+	if ok == "true" {
+		err := order.Verify(db)
+		if err != nil {
+			txtMsg = "خطایی پیش آمده"
+		} else {
+			txtMsg = fmt.Sprintf("سفارش کاربر تایید شد. کد درخواست: %d", orderID)
+			orderResult = "<b>تایید شده✅</b>"
+		}
+	} else {
+		err := order.Dismiss(db)
+		if err != nil {
+			txtMsg = "خطایی پیش آمده"
+		} else {
+			txtMsg = fmt.Sprintf("سفارش کاربر رد شد. کد درخواست: %d", orderID)
+			orderResult = "<b>رد شده❌</b>"
+		}
+	}
+
+	carryMsg := fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, form.FindField("carry_msg").Value)
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    order.User.TelID,
+		Text:      carryMsg,
+		ParseMode: tmodels.ParseModeHTML,
+	})
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: form.ChatID,
+		Text:   txtMsg,
+	})
+
+	ShowAdminDialog(ctx, b, update, form.ChatID)
+}
+
+func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	var chatID int64
+	if update.CallbackQuery != nil {
+		chatID = update.CallbackQuery.Message.Message.Chat.ID
+	} else {
+		chatID = update.Message.Chat.ID
+	}
+	ShowAdminDialog(ctx, b, update, chatID)
 }

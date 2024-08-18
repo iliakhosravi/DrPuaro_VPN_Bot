@@ -16,7 +16,7 @@ const (
 	ActiveOrder
 	DepletedOrder
 	CancelledOrder
-	UnacceptedOrder
+	DismissedOrder
 )
 
 type Order struct {
@@ -60,6 +60,28 @@ func (order *Order) AddReceiptByMsg(db *gorm.DB, msg *tmodels.Message) (*Receipt
 
 func (order *Order) CancelOrder(db *gorm.DB) error {
 	order.Type = CancelledOrder
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to cancel order: %v", result.Error)
+	}
+	return nil
+}
+
+func (order *Order) GetReceipt(db *gorm.DB) Receipt {
+	var receipt Receipt
+	db.Where(&Receipt{OrderID: order.ID}).First(&receipt)
+	return receipt
+}
+
+func (order *Order) Verify(db *gorm.DB) error {
+	order.Type = ActiveOrder
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to cancel order: %v", result.Error)
+	}
+	return nil
+}
+
+func (order *Order) Dismiss(db *gorm.DB) error {
+	order.Type = DismissedOrder
 	if result := db.Save(order); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to cancel order: %v", result.Error)
 	}
