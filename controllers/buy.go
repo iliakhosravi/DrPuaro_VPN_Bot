@@ -247,7 +247,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 	var txtMsg, orderResult string
 	if ok == "true" {
-		err := order.Verify(db)
+		err := order.Verify(db, form.FindField("carry_msg").Value)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
 		} else {

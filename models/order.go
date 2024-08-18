@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 
 	tmodels "github.com/go-telegram/bot/models"
 	"gorm.io/gorm"
@@ -72,10 +73,19 @@ func (order *Order) GetReceipt(db *gorm.DB) Receipt {
 	return receipt
 }
 
-func (order *Order) Verify(db *gorm.DB) error {
+func (order *Order) Verify(db *gorm.DB, link string) error {
 	order.Type = ActiveOrder
+	var config Config = Config{}
+	db.Where(&Config{OrderID: order.ID}).First(&config)
+	config.OrderID = order.ID
+	config.Link = link
+	config.StartDate = time.Now()
+	if result := db.Save(&config); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to update to verify order: %v", result.Error)
+	}
+
 	if result := db.Save(order); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to cancel order: %v", result.Error)
+		return fmt.Errorf("unable to update order to verify order: %v", result.Error)
 	}
 	return nil
 }
