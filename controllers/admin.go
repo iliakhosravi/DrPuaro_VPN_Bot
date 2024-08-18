@@ -61,7 +61,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				},
 				{
 					{ID: "add-pack", Text: "افزودن بسته", CallbackHandler: auth.AdminMiddleware(AddPackController)},
-					{Text: "ویرایش بسته"},
+					{ID: "edit-pack", Text: "ویرایش بسته", CallbackHandler: auth.AdminMiddleware(EditPackController)},
 				},
 				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
