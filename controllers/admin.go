@@ -57,7 +57,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 			Keyboard: [][]dialog.Button{
 				{
 					{ID: "add-cat", Text: "افزودن دسته بندی", CallbackHandler: auth.AdminMiddleware(AddCatController)},
-					{Text: "ویرایش دسته بندی"},
+					{ID: "edit-cat", Text: "ویرایش دسته بندی", CallbackHandler: auth.AdminMiddleware(EditCatController)},
 				},
 				{
 					{ID: "add-pack", Text: "افزودن بسته", CallbackHandler: auth.AdminMiddleware(AddPackController)},

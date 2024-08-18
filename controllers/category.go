@@ -2,13 +2,19 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
+
+type CatEditHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Update, cat models.Category)
 
 var cancelBtnText string = "انصراف"
 
@@ -66,4 +72,87 @@ func onCancelCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		chatID = update.Message.Chat.ID
 	}
 	ShowAdminDialog(ctx, b, update, chatID)
+}
+
+func EditCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	var cats []models.Category
+	db.Find(&cats)
+
+	buttons := []dialog.Button{}
+	for _, cat := range cats {
+		buttons = append(buttons, dialog.Button{
+			ID:              fmt.Sprintf("cat%d", cat.ID),
+			Text:            cat.Name,
+			CallbackHandler: HandleEditCat,
+			CallbackData:    fmt.Sprint(cat.ID),
+		})
+	}
+
+	buttonPage := buttonpage.CreateButtonPage("شما می توانید دسته بندی های ثبت شده زیر را ویرایش کنید.\nدسته بندی موردنظر را انتخاب کنید:", buttons, 5, true)
+	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
+
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+}
+
+func HandleEditCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	db := database.GetDB()
+	catID, _ := strconv.ParseUint(update.CallbackQuery.Data, 10, 0)
+	var cat models.Category
+	db.Find(&cat, catID)
+
+	fields := []form.Field{
+		{
+			Name:        "cat_name",
+			MessageText: fmt.Sprintf("نام دسته بندی چه باشد؟\nنام فعلی:%s", cat.Name),
+			Value:       cat.Name,
+			IsSkippable: true,
+		},
+		{
+			Name:        "cat_description",
+			MessageText: fmt.Sprintf("توضیحات دسته بندی چه باشد؟\nتوضیحات فعلی:%s", cat.Description),
+			Value:       cat.Description,
+			IsSkippable: true,
+		},
+	}
+	form := form.CreateForm("انصراف", fields, chatID, update.CallbackQuery.From.ID, passCategory(onEditCatSubmit, cat), onCancelCat, nil)
+	form.SkipButtonText = "مقدار فعلی"
+	form.SkipMessageText = "مقدار فعلی برای این ورودی قرار گرفت"
+	form.Show(ctx, b, update)
+
+	b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:      chatID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		ReplyMarkup: nil,
+	})
+}
+
+func onEditCatSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, cat models.Category) {
+	form := ctx.Value(form.FORM_KEY).(*form.Form)
+
+	cat.Name = form.FindField("cat_name").Value
+	cat.Description = form.FindField("cat_description").Value
+
+	txtMsg := "ویرایش دسته بندی با موفقیت انجام شد"
+	if err := cat.Store(database.GetDB()); err != nil {
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: form.ChatID,
+		Text:   txtMsg,
+	})
+
+	ShowAdminDialog(ctx, b, update, form.ChatID)
+}
+
+func passCategory(next CatEditHandler, cat models.Category) bot.HandlerFunc {
+	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
+		next(ctx, bot, update, cat)
+	}
 }
