@@ -29,6 +29,7 @@ type Form struct {
 	CancelHandler    bot.HandlerFunc
 	ButtonPrefix     string
 	DefaultValidator Validator
+	Description      string
 }
 
 type Field struct {
@@ -79,17 +80,33 @@ func (form *Form) initFields() {
 }
 
 func (form *Form) Show(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(form.Fields[0].Type == ButtonField), form.fieldHandler)
-
+	field := form.Fields[0]
 	cancelReplyKeyboard := reply.New(
 		b,
 		reply.WithPrefix("cancel_order_keyboard"),
 	).Button(form.CancelButtonText, b, bot.MatchTypeExact, form.onCancel)
 
+	if form.Description != "" {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:      form.ChatID,
+			Text:        form.Description,
+			ReplyMarkup: cancelReplyKeyboard,
+		})
+	}
+
+	var keyboard tmodels.ReplyMarkup
+	if field.Type == ButtonField {
+		form.HandlerID = b.RegisterHandler(bot.HandlerTypeCallbackQueryData, form.ButtonPrefix, bot.MatchTypePrefix, form.fieldHandler)
+		keyboard = field.buildKB(form.ButtonPrefix)
+	} else {
+		form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(field.Type == ButtonField), form.fieldHandler)
+		keyboard = cancelReplyKeyboard
+	}
+
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      form.ChatID,
-		Text:        form.Fields[0].MessageText,
-		ReplyMarkup: cancelReplyKeyboard,
+		Text:        field.MessageText,
+		ReplyMarkup: keyboard,
 	})
 }
 
