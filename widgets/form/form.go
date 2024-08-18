@@ -12,6 +12,7 @@ import (
 type FormKey string
 type FieldType int
 
+const SKIP_DATA = "cancel"
 const FORM_KEY FormKey = "form-key"
 const (
 	TextField FieldType = iota
@@ -20,6 +21,8 @@ const (
 
 type Form struct {
 	CancelButtonText string
+	SkipButtonText   string
+	SkipMessageText  string
 	Fields           []Field
 	FieldIndex       int
 	HandlerID        string
@@ -33,13 +36,15 @@ type Form struct {
 }
 
 type Field struct {
-	Name        string
-	MessageText string
-	Value       string
-	Type        FieldType
-	Keyboard    [][]tmodels.InlineKeyboardButton
-	Validator   Validator
-	Filter      Filter
+	Name          string
+	MessageText   string
+	Value         string
+	Type          FieldType
+	Keyboard      [][]tmodels.InlineKeyboardButton
+	Validator     Validator
+	Filter        Filter
+	IsSkippable   bool
+	SkipHandlerID string
 }
 
 type Filter func(value string) string
@@ -64,6 +69,8 @@ func CreateForm(cancelBtnText string, fields []Field, chatID, userID int64, subm
 		CancelHandler:    cancelHandler,
 		ButtonPrefix:     bot.RandomString(16),
 		DefaultValidator: defaultValidator,
+		SkipButtonText:   "Skip",
+		SkipMessageText:  "Input Skipped",
 	}
 
 	form.initFields()
@@ -81,10 +88,7 @@ func (form *Form) initFields() {
 
 func (form *Form) Show(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	field := form.Fields[0]
-	cancelReplyKeyboard := reply.New(
-		b,
-		reply.WithPrefix("cancel_order_keyboard"),
-	).Button(form.CancelButtonText, b, bot.MatchTypeExact, form.onCancel)
+	cancelReplyKeyboard := form.NewCancelBtn(b)
 
 	if form.Description != "" {
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -94,10 +98,14 @@ func (form *Form) Show(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 		})
 	}
 
+	if field.IsSkippable {
+		cancelReplyKeyboard = cancelReplyKeyboard.Button(form.SkipButtonText, b, bot.MatchTypeExact, form.onSkip)
+	}
+
 	var keyboard tmodels.ReplyMarkup
 	if field.Type == ButtonField {
 		form.HandlerID = b.RegisterHandler(bot.HandlerTypeCallbackQueryData, form.ButtonPrefix, bot.MatchTypePrefix, form.fieldHandler)
-		keyboard = field.buildKB(form.ButtonPrefix)
+		keyboard = field.buildKB(form.ButtonPrefix, form.SkipButtonText)
 	} else {
 		form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(field.Type == ButtonField), form.fieldHandler)
 		keyboard = cancelReplyKeyboard
@@ -113,14 +121,19 @@ func (form *Form) Show(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	field := &form.Fields[form.FieldIndex]
 	var value string
-	if field.Type == ButtonField {
+	switch field.Type {
+	case ButtonField:
 		value = strings.TrimPrefix(update.CallbackQuery.Data, form.ButtonPrefix)
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			ShowAlert:       false,
 		})
-	} else {
+	case TextField:
 		value = update.Message.Text
+	}
+	if value == form.SkipButtonText {
+		form.onSkip(ctx, b, update)
+		return
 	}
 	if ok, errMsg := field.SetValue(value); !ok {
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -130,7 +143,11 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 		return
 	}
 
-	form.FieldIndex++
+	form.loadNextField(ctx, b, update)
+}
+
+func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	field := &form.Fields[form.FieldIndex]
 	b.UnregisterHandler(form.HandlerID)
 	if field.Type == ButtonField {
 		b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
@@ -140,6 +157,7 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 		})
 	}
 
+	form.FieldIndex++
 	if form.FieldIndex == len(form.Fields) {
 		ctx = context.WithValue(ctx, FORM_KEY, form)
 		form.SubmitHandler(ctx, b, update)
@@ -147,9 +165,10 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 	}
 
 	nextField := &form.Fields[form.FieldIndex]
-	if nextField.Type == ButtonField {
+	switch nextField.Type {
+	case ButtonField:
 		form.HandlerID = b.RegisterHandler(bot.HandlerTypeCallbackQueryData, form.ButtonPrefix, bot.MatchTypePrefix, form.fieldHandler)
-	} else {
+	case TextField:
 		form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(form.Fields[form.FieldIndex].Type == ButtonField), form.fieldHandler)
 	}
 
@@ -158,14 +177,17 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 		Text:   nextField.MessageText,
 	}
 
+	if nextField.IsSkippable {
+		params.ReplyMarkup = form.NewCancelBtn(b).Button(form.SkipButtonText, b, bot.MatchTypeExact, form.onSkip)
+	}
 	if nextField.Type == ButtonField {
-		params.ReplyMarkup = nextField.buildKB(form.ButtonPrefix)
+		params.ReplyMarkup = nextField.buildKB(form.ButtonPrefix, form.SkipButtonText)
 	}
 
 	b.SendMessage(ctx, params)
 }
 
-func (field *Field) buildKB(prefix string) *tmodels.InlineKeyboardMarkup {
+func (field *Field) buildKB(prefix string, skipBtnName string) *tmodels.InlineKeyboardMarkup {
 	if field.Type != ButtonField {
 		return nil
 	}
@@ -173,6 +195,14 @@ func (field *Field) buildKB(prefix string) *tmodels.InlineKeyboardMarkup {
 		for j := 0; j < len(field.Keyboard[i]); j++ {
 			field.Keyboard[i][j].CallbackData = prefix + field.Keyboard[i][j].CallbackData
 		}
+	}
+	if field.IsSkippable {
+		field.Keyboard = append(field.Keyboard, []tmodels.InlineKeyboardButton{
+			{
+				Text:         skipBtnName,
+				CallbackData: prefix + skipBtnName,
+			},
+		})
 	}
 	return &tmodels.InlineKeyboardMarkup{
 		InlineKeyboard: field.Keyboard,
@@ -188,6 +218,17 @@ func (form *Form) onCancel(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 	})
 
 	form.CancelHandler(ctx, b, update)
+}
+
+func (form *Form) onSkip(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	b.UnregisterHandler(form.HandlerID)
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        form.SkipMessageText,
+		ReplyMarkup: form.NewCancelBtn(b),
+	})
+
+	form.loadNextField(ctx, b, update)
 }
 
 func (form *Form) checkUserMatch(isCallback bool) bot.MatchFunc {
@@ -228,4 +269,11 @@ func (field *Field) SetValue(value string) (bool, string) {
 		field.Value = value
 	}
 	return ok, errMsg
+}
+
+func (form *Form) NewCancelBtn(b *bot.Bot) *reply.ReplyKeyboard {
+	return reply.New(
+		b,
+		reply.WithPrefix("cancel_order_keyboard"),
+	).Button(form.CancelButtonText, b, bot.MatchTypeExact, form.onCancel)
 }
