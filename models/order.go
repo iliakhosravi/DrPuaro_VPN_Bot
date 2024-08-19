@@ -28,6 +28,7 @@ type Order struct {
 	Pack      Pack      `json:"pack"`
 	Type      OrderType `json:"type"`
 	HandlerID string    `json:"-"`
+	AdminNote string    `json:"admin_note"`
 }
 
 func (order *Order) Migrate(db *gorm.DB) {
@@ -73,12 +74,13 @@ func (order *Order) GetReceipt(db *gorm.DB) Receipt {
 	return receipt
 }
 
-func (order *Order) Verify(db *gorm.DB, link string) error {
+func (order *Order) Verify(db *gorm.DB, adminNote string) error {
 	order.Type = ActiveOrder
+	order.AdminNote = adminNote
 	var config Config = Config{}
 	db.Where(&Config{OrderID: order.ID}).First(&config)
 	config.OrderID = order.ID
-	config.Link = link
+	config.Link = adminNote
 	config.StartDate = ptime.Now().Time()
 	if result := db.Save(&config); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to update to verify order: %v", result.Error)
@@ -90,8 +92,9 @@ func (order *Order) Verify(db *gorm.DB, link string) error {
 	return nil
 }
 
-func (order *Order) Dismiss(db *gorm.DB) error {
+func (order *Order) Dismiss(db *gorm.DB, adminNote string) error {
 	order.Type = DismissedOrder
+	order.AdminNote = adminNote
 	if result := db.Save(order); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to cancel order: %v", result.Error)
 	}

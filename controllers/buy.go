@@ -245,9 +245,10 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var order models.Order
 	db.Preload("User").Preload("Pack").First(&order, orderID)
 
+	carryMsg := form.FindField("carry_msg").Value
 	var txtMsg, orderResult string
 	if ok == "true" {
-		err := order.Verify(db, form.FindField("carry_msg").Value)
+		err := order.Verify(db, carryMsg)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
 		} else {
@@ -255,7 +256,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			orderResult = "<b>تایید شده✅</b>"
 		}
 	} else {
-		err := order.Dismiss(db)
+		err := order.Dismiss(db, carryMsg)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
 		} else {
@@ -264,7 +265,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		}
 	}
 
-	carryMsg := fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, form.FindField("carry_msg").Value)
+	carryMsg = fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, form.FindField("carry_msg").Value)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    order.User.TelID,
 		Text:      carryMsg,
