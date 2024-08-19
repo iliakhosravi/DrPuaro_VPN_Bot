@@ -8,16 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type OrderType int
+type OrderType string
 
 const (
-	UndefinedOrder OrderType = iota
-	SentOrder
-	PendingOrder
-	ActiveOrder
-	DepletedOrder
-	CancelledOrder
-	DismissedOrder
+	UndefinedOrder OrderType = "undefined"
+	SentOrder                = "sent"
+	PendingOrder             = "pending"
+	ActiveOrder              = "active"
+	DepletedOrder            = "depleted"
+	CancelledOrder           = "cancelled"
+	DismissedOrder           = "dismissed"
 )
 
 type Order struct {
@@ -96,7 +96,23 @@ func (order *Order) Dismiss(db *gorm.DB, adminNote string) error {
 	order.Type = DismissedOrder
 	order.AdminNote = adminNote
 	if result := db.Save(order); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to cancel order: %v", result.Error)
+		return fmt.Errorf("unable to dismiss order: %v", result.Error)
+	}
+	return nil
+}
+
+func (order *Order) Deplete(db *gorm.DB) error {
+	order.Type = DepletedOrder
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to deplete order: %v", result.Error)
+	}
+	return nil
+}
+
+func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
+	order.Type = orderType
+	if result := db.Save(order); result.RowsAffected == 0 {
+		return fmt.Errorf("unable to deplete order: %v", result.Error)
 	}
 	return nil
 }
