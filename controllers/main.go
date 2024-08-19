@@ -59,7 +59,7 @@ func NewMainDialog() []dialog.Node {
 			Keyboard: [][]dialog.Button{
 				{
 					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
-					{ID: "depleted-orders", Text: "بسته های تمام شده"},
+					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
 				},
 			},
 		},

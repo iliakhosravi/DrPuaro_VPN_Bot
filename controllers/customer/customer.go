@@ -27,6 +27,19 @@ func ActiveOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	buttonPage.Show(ctx, b, chatID)
 }
 
+func DepletedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	user := ctx.Value(auth.UserKey).(m.User)
+
+	orders := user.RetrieveOrders(db, m.DepletedOrder, "Pack")
+
+	buttons := createOrderButtons(orders)
+
+	buttonPage := bp.CreateButtonPage("لیست بسته های تمام شده", buttons, 5, true)
+	buttonPage.Show(ctx, b, chatID)
+}
+
 func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
