@@ -9,6 +9,7 @@ import (
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"gorm.io/gorm"
+	customerController "techybat.org/go-vpn/controllers/customer"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 )
@@ -42,11 +43,23 @@ func NewMainDialog() []dialog.Node {
 			Text: "☄️ Ultra Fast VPN☄️\n",
 			Keyboard: [][]dialog.Button{
 				{
-					{Text: "خرید کانفیگ", NodeID: "categories"},
-					{Text: "درباره ما", NodeID: "about us"},
+					{Text: "خرید بسته", NodeID: "categories"},
+					{Text: "بسته های خریداری شده", NodeID: "orders"},
 				},
 				{
+					{Text: "درباره ما", NodeID: "about us"},
 					{Text: "نحوه اتصال", URL: "https://github.com/sinasadeghi83/go-telegram-bot-ui"},
+				},
+			},
+		},
+
+		{
+			ID:   "orders",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
+					{ID: "depleted-orders", Text: "بسته های تمام شده"},
 				},
 			},
 		},

@@ -59,3 +59,18 @@ func (user *User) FirstSentOrder(db *gorm.DB, order *Order) error {
 func (user *User) Fullname() string {
 	return user.FirstName + " " + user.LastName
 }
+
+func (user *User) RetrieveOrders(db *gorm.DB, orderType OrderType, preloads ...string) []Order {
+	var orders []Order
+	query := db.Where(&Order{UserID: user.ID, Type: orderType})
+	for _, preload := range preloads {
+		query.Preload(preload)
+	}
+	if result := query.Order("created_at DESC").Find(&orders); result.RowsAffected == 0 {
+		if result.Error != nil {
+			fmt.Println("Error retrieve orders: ", result.Error)
+		}
+		return []Order{}
+	}
+	return orders
+}

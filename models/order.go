@@ -2,9 +2,9 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	tmodels "github.com/go-telegram/bot/models"
+	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 )
 
@@ -79,7 +79,7 @@ func (order *Order) Verify(db *gorm.DB, link string) error {
 	db.Where(&Config{OrderID: order.ID}).First(&config)
 	config.OrderID = order.ID
 	config.Link = link
-	config.StartDate = time.Now()
+	config.StartDate = ptime.Now().Time()
 	if result := db.Save(&config); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to update to verify order: %v", result.Error)
 	}
@@ -96,4 +96,31 @@ func (order *Order) Dismiss(db *gorm.DB) error {
 		return fmt.Errorf("unable to cancel order: %v", result.Error)
 	}
 	return nil
+}
+
+func (orderType OrderType) String() string {
+	switch orderType {
+	case SentOrder:
+		return "در انتظار ارسال رسید توسط کاربر"
+	case PendingOrder:
+		return "در انتظار تایید"
+	case ActiveOrder:
+		return "فعال"
+	case DepletedOrder:
+		return "اتمام حجم یا دوره"
+	case CancelledOrder:
+		return "انصراف کاربر از تکمیل سفارش"
+	case DismissedOrder:
+		return "رد شده"
+	}
+	return "نامشخص"
+}
+
+func (order *Order) Config(db *gorm.DB) *Config {
+	var config Config
+	if result := db.Where(&Config{OrderID: order.ID}).Find(&config); result.RowsAffected == 0 {
+		return &Config{}
+	}
+
+	return &config
 }
