@@ -38,12 +38,13 @@ func CreateButtonPage(title string, buttons []dialog.Button, perPage int, withCl
 	return buttonPage
 }
 
-func (buttonPage *ButtonPage) Show(ctx context.Context, b *bot.Bot, chatID any) {
+func (buttonPage *ButtonPage) Show(ctx context.Context, b *bot.Bot, chatID any) (*tmodels.Message, error) {
 	message, err := buttonPage.Dialog.Show(ctx, b, chatID, "Page1")
 	if err == nil {
 		buttonPage.Message = message
 		buttonPage.FirstPageCallbackData = buttonPage.prefix + buttonPage.nodePrefix + "Page1"
 	}
+	return message, err
 }
 
 func (buttonPage *ButtonPage) initNodes() {
@@ -57,7 +58,7 @@ func (buttonPage *ButtonPage) initNodes() {
 	}
 	currentNode := dialog.Node{
 		ID:       "Page1",
-		Text:     bot.EscapeMarkdown(fmt.Sprintf("%s\n(%d/%d)", buttonPage.Title, page, pagesCount)),
+		Text:     fmt.Sprintf("%s\n\\(%d/%d\\)", buttonPage.Title, page, pagesCount),
 		Keyboard: [][]dialog.Button{},
 	}
 
@@ -68,7 +69,7 @@ func (buttonPage *ButtonPage) initNodes() {
 			nodes = append(nodes, currentNode)
 			currentNode = dialog.Node{
 				ID:       fmt.Sprintf("Page%d", page),
-				Text:     bot.EscapeMarkdown(fmt.Sprintf("%s\n(%d/%d)", buttonPage.Title, page, pagesCount)),
+				Text:     fmt.Sprintf("%s\n(%d/%d)", buttonPage.Title, page, pagesCount),
 				Keyboard: [][]dialog.Button{},
 			}
 		}
@@ -112,6 +113,10 @@ func onClose(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
+
+	if update.CallbackQuery.Message.Message == nil {
+		return
+	}
 
 	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
