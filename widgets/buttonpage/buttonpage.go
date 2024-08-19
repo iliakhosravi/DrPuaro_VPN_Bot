@@ -10,19 +10,27 @@ import (
 )
 
 type ButtonPage struct {
-	Title     string
-	Dialog    *dialog.Dialog
-	Buttons   []dialog.Button
-	PerPage   int
-	WithClose bool
+	Title                 string
+	Dialog                *dialog.Dialog
+	Buttons               []dialog.Button
+	PerPage               int
+	WithClose             bool
+	Message               *tmodels.Message
+	FirstPageCallbackData string
+	prefix                string
+	callbackPrefix        string
+	nodePrefix            string
 }
 
 func CreateButtonPage(title string, buttons []dialog.Button, perPage int, withClose bool) *ButtonPage {
 	buttonPage := &ButtonPage{
-		Title:     title,
-		Buttons:   buttons,
-		PerPage:   perPage,
-		WithClose: withClose,
+		Title:          title,
+		Buttons:        buttons,
+		PerPage:        perPage,
+		WithClose:      withClose,
+		prefix:         bot.RandomString(12),
+		callbackPrefix: bot.RandomString(12),
+		nodePrefix:     bot.RandomString(4),
 	}
 
 	buttonPage.initNodes()
@@ -31,7 +39,11 @@ func CreateButtonPage(title string, buttons []dialog.Button, perPage int, withCl
 }
 
 func (buttonPage *ButtonPage) Show(ctx context.Context, b *bot.Bot, chatID any) {
-	buttonPage.Dialog.Show(ctx, b, chatID, "Page1")
+	message, err := buttonPage.Dialog.Show(ctx, b, chatID, "Page1")
+	if err == nil {
+		buttonPage.Message = message
+		buttonPage.FirstPageCallbackData = buttonPage.prefix + buttonPage.nodePrefix + "Page1"
+	}
 }
 
 func (buttonPage *ButtonPage) initNodes() {
@@ -65,7 +77,7 @@ func (buttonPage *ButtonPage) initNodes() {
 	currentNode.Keyboard = append(currentNode.Keyboard, makeTransitionKeyboard(pagesCount, page, buttonPage.WithClose))
 	nodes = append(nodes, currentNode)
 
-	buttonPage.Dialog = dialog.New(nodes, dialog.Inline())
+	buttonPage.Dialog = dialog.New(nodes, dialog.Inline(), dialog.WithPrefix(buttonPage.prefix), dialog.WithCallbackPrefix(buttonPage.callbackPrefix), dialog.WithNodePrefix(buttonPage.nodePrefix))
 }
 
 func makeTransitionKeyboard(pagesCount, page int, withClose bool) []dialog.Button {
