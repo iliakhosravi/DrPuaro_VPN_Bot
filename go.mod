@@ -6,6 +6,7 @@ require (
 	github.com/go-telegram/bot v1.6.1
 	github.com/joho/godotenv v1.5.1
 	github.com/sinasadeghi83/go-telegram-bot-ui v0.0.0-20240814134859-aa0bb449e83b
+	github.com/yaa110/go-persian-calendar v1.2.1
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.11
 )
