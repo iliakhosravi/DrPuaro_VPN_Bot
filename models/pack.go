@@ -21,7 +21,7 @@ func (pack *Pack) Migrate(db *gorm.DB) {
 	db.AutoMigrate(&Pack{})
 }
 
-func (pack *Pack) String() string {
+func (pack Pack) String() string {
 	return fmt.Sprintf("حجم %d گیگابایت | %d روزه | %d تومان", pack.Traffic, pack.Period, pack.Price)
 }
 
