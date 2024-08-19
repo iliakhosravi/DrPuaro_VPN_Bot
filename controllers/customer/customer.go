@@ -78,7 +78,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
 
 	var txtMsg string
-	if order.Type != m.ActiveOrder {
+	if order.Type == m.ActiveOrder {
 		config := order.Config(db)
 		pt := ptime.New(config.StartDate)
 		showDate := pt.Format("d MMM y")
