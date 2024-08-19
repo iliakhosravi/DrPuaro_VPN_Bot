@@ -61,6 +61,13 @@ func NewMainDialog() []dialog.Node {
 					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
 					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
 				},
+				{
+					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: customerController.PendingOrdersHandler},
+					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: customerController.DismissedOrdersHandler},
+				},
+				{
+					{Text: "بازگشت", NodeID: "start"},
+				},
 			},
 		},
 	}

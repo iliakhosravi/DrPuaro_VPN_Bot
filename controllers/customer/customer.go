@@ -40,6 +40,32 @@ func DepletedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 	buttonPage.Show(ctx, b, chatID)
 }
 
+func DismissedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	user := ctx.Value(auth.UserKey).(m.User)
+
+	orders := user.RetrieveOrders(db, m.DismissedOrder, "Pack")
+
+	buttons := createOrderButtons(orders)
+
+	buttonPage := bp.CreateButtonPage("لیست بسته های رد شده", buttons, 5, true)
+	buttonPage.Show(ctx, b, chatID)
+}
+
+func PendingOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	user := ctx.Value(auth.UserKey).(m.User)
+
+	orders := user.RetrieveOrders(db, m.PendingOrder, "Pack")
+
+	buttons := createOrderButtons(orders)
+
+	buttonPage := bp.CreateButtonPage("لیست بسته های در انتظار تایید", buttons, 5, true)
+	buttonPage.Show(ctx, b, chatID)
+}
+
 func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
@@ -51,11 +77,17 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var order m.Order
 	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
 
-	config := order.Config(db)
-	pt := ptime.New(config.StartDate)
-	showDate := pt.Format("d MMM y")
-	txtMsg := fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ شروع:%v\nتوضیحات:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, config.Link)
-
+	var txtMsg string
+	if order.Type != m.ActiveOrder {
+		config := order.Config(db)
+		pt := ptime.New(config.StartDate)
+		showDate := pt.Format("d MMM y")
+		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ شروع:%v\nتوضیحات:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, config.Link)
+	} else {
+		pt := ptime.New(order.CreatedAt)
+		showDate := pt.Format("d MMM y")
+		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
+	}
 	if _, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
