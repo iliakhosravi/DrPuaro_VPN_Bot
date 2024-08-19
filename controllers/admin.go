@@ -6,7 +6,9 @@ import (
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
+	adminController "techybat.org/go-vpn/controllers/admin"
 	"techybat.org/go-vpn/middlewares/auth"
+	"techybat.org/go-vpn/models"
 )
 
 func AdminController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -44,7 +46,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				},
 				{
 					{ID: "verify-buy-requests", Text: "بررسی درخواست های خرید", CallbackHandler: auth.AdminMiddleware(VerifyBuyController)},
-					{Text: "کانفیگ های خریداری شده", NodeID: "bought-configs"},
+					{Text: "لیست سفارشات", NodeID: "orders-list"},
 				},
 				{
 					{Text: "ارسال پیام همگانی", NodeID: "bulk-message"},
@@ -65,6 +67,23 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				},
 				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
+				},
+			},
+		},
+		{
+			ID:   "orders-list",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: adminController.OrdersHandler, CallbackData: models.ActiveOrder},
+					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: adminController.OrdersHandler, CallbackData: models.DepletedOrder},
+				},
+				{
+					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: adminController.OrdersHandler, CallbackData: models.PendingOrder},
+					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: adminController.OrdersHandler, CallbackData: models.DismissedOrder},
+				},
+				{
+					{Text: "بازگشت", NodeID: "start"},
 				},
 			},
 		},
