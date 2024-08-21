@@ -83,7 +83,23 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: adminController.OrdersHandler, CallbackData: models.DismissedOrder},
 				},
 				{
-					{Text: "بازگشت", NodeID: "start"},
+					{Text: "بازگشت", NodeID: "admin-panel"},
+				},
+			},
+		},
+		{
+			ID:   "help-btns",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "add-guide",
+						Text:            "افزودن دکمه راهنما",
+						CallbackHandler: auth.AdminMiddleware(adminController.AddGuideHandler),
+					},
+				},
+				{
+					{Text: "بازگشت", NodeID: "admin-panel"},
 				},
 			},
 		},
