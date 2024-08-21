@@ -25,7 +25,7 @@ func OrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
 	var orders []m.Order
-	db.Where("type = ?", orderType).Preload("Pack").Preload("Pack.Category").Preload("User").Find(&orders)
+	db.Where("type = ?", orderType).Preload("Pack").Preload("Pack.Category").Preload("User").Order("created_at desc").Find(&orders)
 
 	buttons := createOrderButtons(orders)
 
