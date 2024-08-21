@@ -167,11 +167,11 @@ func (o *Order) FullStr(db *gorm.DB) string {
 		startDate := pt.Format(dateFormat)
 		pt = ptime.New(order.CreatedAt)
 		orderDate := pt.Format(dateFormat)
-		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s\nتاریخ شروع بسته:%s\nلینک بسته:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, config.Link)
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ شروع بسته: %s\nلینک بسته: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, config.Link)
 	} else {
 		pt := ptime.New(order.CreatedAt)
 		showDate := pt.Format("d MMM y")
-		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
 	}
 
 	return txtMsg
