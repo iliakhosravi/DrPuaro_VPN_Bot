@@ -6,6 +6,7 @@ import (
 	tmodels "github.com/go-telegram/bot/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OrderType string
@@ -110,11 +111,17 @@ func (order *Order) Deplete(db *gorm.DB) error {
 }
 
 func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
-	order.Type = orderType
-	if result := db.Save(order); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to deplete order: %v", result.Error)
+	switch orderType {
+	case order.Type:
+		return nil
+	case ActiveOrder:
+		return order.Verify(db, order.AdminNote)
+	case DepletedOrder:
+		return order.Deplete(db)
+	case DismissedOrder:
+		return order.Dismiss(db, order.AdminNote)
 	}
-	return nil
+	return fmt.Errorf("error: order.ChangeType, order type is not supported")
 }
 
 func (orderType OrderType) String() string {
@@ -135,11 +142,37 @@ func (orderType OrderType) String() string {
 	return "نامشخص"
 }
 
+func (order *Order) HasConfig(db *gorm.DB) bool {
+	return order.Config(db).ID != 0
+}
+
 func (order *Order) Config(db *gorm.DB) *Config {
 	var config Config
-	if result := db.Where(&Config{OrderID: order.ID}).Find(&config); result.RowsAffected == 0 {
+	if result := db.Where(&Config{OrderID: order.ID}).Preload(clause.Associations).Find(&config); result.RowsAffected == 0 {
 		return &Config{}
 	}
+	config.Order = *order
 
 	return &config
+}
+
+func (o *Order) FullStr(db *gorm.DB) string {
+	var txtMsg string
+	var order Order
+	db.Preload("Pack").Preload("Pack.Category").Find(&order, o.ID)
+	if order.Type == ActiveOrder {
+		config := order.Config(db)
+		dateFormat := "d MMM y"
+		pt := ptime.New(config.StartDate)
+		startDate := pt.Format(dateFormat)
+		pt = ptime.New(order.CreatedAt)
+		orderDate := pt.Format(dateFormat)
+		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s\nتاریخ شروع بسته:%s\nلینک بسته:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, config.Link)
+	} else {
+		pt := ptime.New(order.CreatedAt)
+		showDate := pt.Format("d MMM y")
+		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
+	}
+
+	return txtMsg
 }
