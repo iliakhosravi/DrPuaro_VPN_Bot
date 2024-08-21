@@ -45,9 +45,9 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	orderID := update.CallbackQuery.Data
 	var order m.Order
-	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
+	db.Preload(clause.Associations).Preload("Pack.Category").Find(&order, orderID)
 
-	txtMsg := order.FullStr(db)
+	txtMsg := order.FullStr(db) + "\n\nاطلاعات درخواست کننده:\n" + order.User.String()
 
 	txtMsg = bot.EscapeMarkdown(txtMsg)
 

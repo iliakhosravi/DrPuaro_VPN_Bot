@@ -11,7 +11,7 @@ type UserType string
 
 const (
 	NoramlUser UserType = "normal"
-	AdminUser  UserType = "admin"
+	AdminUser           = "admin"
 )
 
 type User struct {
@@ -73,4 +73,17 @@ func (user *User) RetrieveOrders(db *gorm.DB, orderType OrderType, preloads ...s
 		return []Order{}
 	}
 	return orders
+}
+
+func (ut UserType) String() string {
+	switch ut {
+	case AdminUser:
+		return "ادمین"
+	default:
+		return "عادی"
+	}
+}
+
+func (user *User) String() string {
+	return fmt.Sprintf("آیدی تلگرام: %d\nنام: %s\nنام خانوادگی: %s\nنام کاربری: %s\nنوع: %s\n", user.TelID, user.FirstName, user.LastName, user.Username, user.Type)
 }
