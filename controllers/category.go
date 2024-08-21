@@ -89,8 +89,11 @@ func EditCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 		})
 	}
 
-	buttonPage := buttonpage.CreateButtonPage("شما می توانید دسته بندی های ثبت شده زیر را ویرایش کنید.\nدسته بندی موردنظر را انتخاب کنید:", buttons, 5, true)
-	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
+	title := bot.EscapeMarkdown("شما می توانید دسته بندی های ثبت شده زیر را ویرایش کنید.\nدسته بندی موردنظر را انتخاب کنید:")
+	buttonPage := buttonpage.CreateButtonPage(title, buttons, 5, true)
+	if _, err := buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID); err != nil {
+		fmt.Println("Error: cannot show edit category buttonpage: ", err)
+	}
 
 	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,

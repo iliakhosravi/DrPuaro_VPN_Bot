@@ -112,7 +112,8 @@ func EditPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 		})
 	}
 
-	buttonPage := buttonpage.CreateButtonPage("شما می توانید بسته های ثبت شده زیر را ویرایش کنید.\nبسته موردنظر را انتخاب کنید:", buttons, 5, true)
+	title := bot.EscapeMarkdown("شما می توانید بسته های ثبت شده زیر را ویرایش کنید.\nبسته موردنظر را انتخاب کنید:")
+	buttonPage := buttonpage.CreateButtonPage(title, buttons, 5, true)
 	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
 
 	b.DeleteMessage(ctx, &bot.DeleteMessageParams{

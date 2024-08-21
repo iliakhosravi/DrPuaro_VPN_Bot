@@ -170,7 +170,7 @@ func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		})
 	}
 
-	buttonPage := buttonpage.CreateButtonPage("لیست درخواست های ارسالی:", orderBtns, 5, true)
+	buttonPage := buttonpage.CreateButtonPage(bot.EscapeMarkdown("لیست درخواست های ارسالی:"), orderBtns, 5, true)
 
 	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
 }
