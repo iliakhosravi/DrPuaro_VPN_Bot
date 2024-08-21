@@ -2,6 +2,7 @@ package form
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -19,6 +20,7 @@ const FORM_KEY FormKey = "form-key"
 const (
 	TextField FieldType = iota
 	ButtonField
+	CustomTextField
 )
 
 type Form struct {
@@ -41,18 +43,21 @@ type Form struct {
 }
 
 type Field struct {
-	Name        string
-	MessageText string
-	Value       string
-	Type        FieldType
-	Keyboard    [][]tmodels.InlineKeyboardButton
-	Validator   Validator
-	Filter      Filter
-	IsSkippable bool
+	Name          string
+	MessageText   string
+	Value         string
+	Type          FieldType
+	Keyboard      [][]tmodels.InlineKeyboardButton
+	Validator     Validator
+	Filter        Filter
+	IsSkippable   bool
+	CustomHandler CustomHandler
 }
 
 type Filter func(value string) string
 type Validator func(value string) (bool, string)
+type CustomHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Update, form Form, setter FieldSetter) (bool, error)
+type FieldSetter func(value string) (bool, string)
 
 func DefaultValidator(value string) (bool, string) {
 	return value != "", "error"
@@ -129,6 +134,21 @@ func (form *Form) fieldHandler(ctx context.Context, b *bot.Bot, update *tmodels.
 	form.loadNextField(ctx, b, update)
 }
 
+func (form *Form) customFieldHandler(next CustomHandler) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+		field := form.currentField()
+		ok, err := next(ctx, b, update, *form, field.SetValue)
+		if !ok {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: form.ChatID,
+				Text:   fmt.Sprintf("%s", err),
+			})
+			return
+		}
+		form.loadNextField(ctx, b, update)
+	}
+}
+
 func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	b.UnregisterHandler(form.HandlerID)
 
@@ -153,6 +173,8 @@ func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels
 		form.HandlerID = b.RegisterHandler(bot.HandlerTypeCallbackQueryData, form.ButtonPrefix, bot.MatchTypePrefix, form.fieldHandler)
 	case TextField:
 		form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(), form.fieldHandler)
+	case CustomTextField:
+		form.HandlerID = b.RegisterHandlerMatchFunc(form.checkUserMatch(), form.customFieldHandler(nextField.CustomHandler))
 	}
 
 	params := &bot.SendMessageParams{
@@ -295,4 +317,12 @@ func (form *Form) currentField() *Field {
 
 func (form *Form) isFirstField() bool {
 	return form.FieldIndex == 0
+}
+
+func (form Form) CurrentField() Field {
+	if form.isFirstField() {
+		return form.Fields[0]
+	}
+
+	return form.Fields[form.FieldIndex-1]
 }
