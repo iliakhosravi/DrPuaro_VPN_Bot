@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/go-telegram/bot"
@@ -46,10 +47,6 @@ func NewMainDialog() []dialog.Node {
 					{Text: "خرید بسته", NodeID: "categories"},
 					{Text: "بسته های خریداری شده", NodeID: "orders"},
 				},
-				{
-					{Text: "درباره ما", NodeID: "about us"},
-					{Text: "نحوه اتصال", URL: "https://github.com/sinasadeghi83/go-telegram-bot-ui"},
-				},
 			},
 		},
 
@@ -72,9 +69,45 @@ func NewMainDialog() []dialog.Node {
 		},
 	}
 
+	dialogNodes[0].Keyboard = append(dialogNodes[0].Keyboard, CreateGuideKeyboard(db)...)
 	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, BuyController)...)
 
 	return dialogNodes
+}
+
+func CreateGuideKeyboard(db *gorm.DB) [][]dialog.Button {
+	var guides []models.Guide
+	db.Find(&guides)
+
+	keyboard := [][]dialog.Button{}
+	for i, guide := range guides {
+		if i%2 == 0 {
+			keyboard = append(keyboard, []dialog.Button{})
+		}
+		idx := len(keyboard) - 1
+		button := dialog.Button{
+			ID:   fmt.Sprintf("guide%d", i),
+			Text: guide.Title,
+		}
+		switch guide.Type {
+		case models.LINK_GUIDE:
+			button.URL = guide.Link
+		case models.FWD_MSG_GUIDE:
+			button.CallbackHandler = ForwardGuideHandler
+			button.CallbackData = fmt.Sprintf("%d", guide.FwdMsgID)
+		}
+		keyboard[idx] = append(keyboard[idx], button)
+	}
+	return keyboard
+}
+
+func ForwardGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	msgID, _ := strconv.Atoi(update.CallbackQuery.Data)
+	b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
+		MessageID:  msgID,
+	})
 }
 
 func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node {
