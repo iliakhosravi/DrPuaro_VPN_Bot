@@ -49,7 +49,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{Text: "لیست سفارشات", NodeID: "orders-list"},
 				},
 				{
-					{Text: "ارسال پیام همگانی", NodeID: "bulk-message"},
+					{ID: "bulk-message", Text: "ارسال پیام همگانی", CallbackHandler: auth.AdminMiddleware(adminController.SendToAllMsgHandler)},
 				},
 				{
 					{Text: "مدیریت کارت ها", NodeID: "card-manage"},
