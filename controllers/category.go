@@ -77,7 +77,7 @@ func onCancelCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 func EditCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	var cats []models.Category
-	db.Find(&cats)
+	db.Order("created_at desc").Find(&cats)
 
 	buttons := []dialog.Button{}
 	for _, cat := range cats {
@@ -102,6 +102,125 @@ func EditCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 }
 
 func HandleEditCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	db := database.GetDB()
+	catID := update.CallbackQuery.Data
+	var cat models.Category
+	db.Find(&cat, catID)
+
+	txtMsg := cat.String() + "\nقصد انجام چه کاری را با این دسته بندی دارید؟"
+
+	nodes := []dialog.Node{
+		{
+			ID:   "edit-cat",
+			Text: txtMsg,
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "edit",
+						Text:            "ویرایش",
+						CallbackHandler: onEditCat,
+						CallbackData:    catID,
+					},
+				},
+			},
+		},
+		{
+			ID:   "remove-cat",
+			Text: bot.EscapeMarkdown("آیا از غیرفعال سازی(حذف) این دسته بندی مطمئن هستید؟"),
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "remove",
+						Text:            "بله",
+						CallbackHandler: onRemoveCat,
+						CallbackData:    catID,
+					},
+					{
+						Text:   "خیر",
+						NodeID: "edit-cat",
+					},
+				},
+			},
+		},
+		{
+			ID:   "active-cat",
+			Text: bot.EscapeMarkdown("آیا از فعال سازی این دسته بندی مطمئن هستید؟"),
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "active",
+						Text:            "بله",
+						CallbackHandler: onActiveCat,
+						CallbackData:    catID,
+					},
+					{
+						Text:   "خیر",
+						NodeID: "edit-cat",
+					},
+				},
+			},
+		},
+	}
+
+	if cat.Status != models.UnactiveCat {
+		nodes[0].Keyboard[0] = append(nodes[0].Keyboard[0], dialog.Button{
+			Text:   "غیرفعال سازی(حذف)",
+			NodeID: "remove-cat",
+		})
+	}
+
+	if cat.Status != models.ActiveCat {
+		nodes[0].Keyboard[0] = append(nodes[0].Keyboard[0], dialog.Button{
+			Text:   "فعال سازی",
+			NodeID: "active-cat",
+		})
+	}
+
+	dg := dialog.New(nodes, dialog.Inline())
+
+	dg.Show(ctx, b, chatID, "edit-cat")
+}
+
+func onActiveCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	catID := update.CallbackQuery.Data
+	db := database.GetDB()
+	var cat models.Category
+	db.Find(&cat, catID)
+
+	txtMsg := "دسته بندی با موفقیت فعال شد."
+	if err := cat.Active(db); err != nil {
+		fmt.Println("Unable to remove category. err: ", err)
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+}
+
+func onRemoveCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	catID := update.CallbackQuery.Data
+	db := database.GetDB()
+	var cat models.Category
+	db.Find(&cat, catID)
+
+	txtMsg := "دسته بندی با موفقیت غیرفعال شد."
+	if err := cat.Deactive(db); err != nil {
+		fmt.Println("Unable to remove category. err: ", err)
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+}
+func onEditCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
 	db := database.GetDB()

@@ -114,7 +114,8 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 	packNodes := make([]dialog.Node, 0)
 
 	var categories []models.Category
-	db.Find(&categories)
+
+	models.GetActiveCategories(db, &categories)
 	catNode := dialog.Node{
 		ID:       "categories",
 		Text:     "یکی از دسته بندی های زیر را انتخاب کنید",
