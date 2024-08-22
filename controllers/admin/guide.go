@@ -8,10 +8,52 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
+	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
+
+func RemoveGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	var guides []m.Guide
+	db.Find(&guides)
+	buttons := []dialog.Button{}
+	for _, guide := range guides {
+		guideID := fmt.Sprintf("%d", guide.ID)
+		buttons = append(buttons, dialog.Button{
+			ID:              guideID,
+			Text:            guide.Title,
+			CallbackHandler: onRemoveGuide,
+			CallbackData:    guideID,
+		})
+	}
+	buttonPage := bp.CreateButtonPage("کدام دکمه را می خواهید حذف کنید؟", buttons, 5, true)
+	buttonPage.Show(ctx, b, chatID)
+}
+
+func onRemoveGuide(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	guideID := update.CallbackQuery.Data
+	var guide m.Guide
+	txtMsg := "دکمه با موفقیت حذف شد."
+	if res := db.First(&guide, guideID); res.Error != nil {
+		fmt.Println("Error unable to find guide. err: ", res.Error)
+		txtMsg = "مشکلی پیش آمده"
+	}
+	if res := db.Delete(&guide); res.Error != nil {
+		fmt.Println("Error unable to delete guide. err: ", res.Error)
+		txtMsg = "مشکلی پیش آمده"
+	}
+
+	chatID := update.CallbackQuery.From.ID
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+}
 
 func AddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID

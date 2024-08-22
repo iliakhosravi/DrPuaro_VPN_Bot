@@ -100,6 +100,11 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 						Text:            "افزودن دکمه راهنما",
 						CallbackHandler: auth.AdminMiddleware(adminController.AddGuideHandler),
 					},
+					{
+						ID:              "remove-guide",
+						Text:            "حذف دکمه راهنما",
+						CallbackHandler: auth.AdminMiddleware(adminController.RemoveGuideHandler),
+					},
 				},
 				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
