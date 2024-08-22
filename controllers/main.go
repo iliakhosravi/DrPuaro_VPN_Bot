@@ -137,7 +137,7 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 		}
 
 		var packs []models.Pack
-		db.Find(&packs, models.Pack{CategoryID: category.ID})
+		models.GetActivePacksByCatID(db, &packs, category.ID)
 
 		packsNode := dialog.Node{
 			ID:       strCatID,

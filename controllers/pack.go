@@ -9,6 +9,7 @@ import (
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/widgets/buttonpage"
@@ -123,12 +124,130 @@ func EditPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 }
 
 func HandleEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	chatID := update.CallbackQuery.From.ID
+	packID := update.CallbackQuery.Data
+	var pack models.Pack
+	db.Preload(clause.Associations).Find(&pack, packID)
+
+	txtMsg := pack.FullStr() + "\n\nقصد انجام چه کاری را با این بسته دارید؟"
+
+	nodes := []dialog.Node{
+		{
+			ID:   "edit-pack",
+			Text: txtMsg,
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "edit",
+						Text:            "ویرایش",
+						CallbackHandler: onEditPack,
+						CallbackData:    packID,
+					},
+				},
+			},
+		},
+		{
+			ID:   "remove-pack",
+			Text: bot.EscapeMarkdown("آیا از غیرفعال سازی(حذف) این بسته مطمئن هستید؟"),
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "remove",
+						Text:            "بله",
+						CallbackHandler: onRemovePack,
+						CallbackData:    packID,
+					},
+					{
+						Text:   "خیر",
+						NodeID: "edit-pack",
+					},
+				},
+			},
+		},
+		{
+			ID:   "active-pack",
+			Text: bot.EscapeMarkdown("آیا از فعال سازی این بسته مطمئن هستید؟"),
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "active",
+						Text:            "بله",
+						CallbackHandler: onActivePack,
+						CallbackData:    packID,
+					},
+					{
+						Text:   "خیر",
+						NodeID: "edit-pack",
+					},
+				},
+			},
+		},
+	}
+
+	if pack.Status != models.UnactivePack {
+		nodes[0].Keyboard[0] = append(nodes[0].Keyboard[0], dialog.Button{
+			Text:   "غیرفعال سازی(حذف)",
+			NodeID: "remove-pack",
+		})
+	}
+
+	if pack.Status != models.ActivePack {
+		nodes[0].Keyboard[0] = append(nodes[0].Keyboard[0], dialog.Button{
+			Text:   "فعال سازی",
+			NodeID: "active-pack",
+		})
+	}
+
+	dg := dialog.New(nodes, dialog.Inline())
+	dg.Show(ctx, b, chatID, "edit-pack")
+}
+
+func onActivePack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	packID := update.CallbackQuery.Data
+	db := database.GetDB()
+	var pack models.Pack
+	db.Find(&pack, packID)
+
+	txtMsg := "بسته با موفقیت فعال شد."
+	if err := pack.Active(db); err != nil {
+		fmt.Println("Unable to active pack. err: ", err)
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+}
+
+func onRemovePack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	packID := update.CallbackQuery.Data
+	db := database.GetDB()
+	var pack models.Pack
+	db.Find(&pack, packID)
+
+	txtMsg := "بسته با موفقیت غیرفعال شد."
+	if err := pack.Deactive(db); err != nil {
+		fmt.Println("Unable to remove pack. err: ", err)
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+}
+
+func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
 	db := database.GetDB()
 	packID, _ := strconv.ParseUint(update.CallbackQuery.Data, 10, 0)
 	var pack models.Pack
-	db.Preload("Category").Find(&pack, packID)
+	db.Preload("Category").Order("created_at desc").Find(&pack, packID)
 
 	var catKeyboard = makeCatKeyboard(db)
 

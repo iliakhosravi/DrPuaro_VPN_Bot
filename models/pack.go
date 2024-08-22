@@ -8,17 +8,30 @@ import (
 	"techybat.org/go-vpn/widgets/form"
 )
 
+type PackStatus string
+
+const (
+	UndefinedPack PackStatus = "undefined"
+	ActivePack    PackStatus = "active"
+	UnactivePack  PackStatus = "unactive"
+)
+
 type Pack struct {
 	BaseModel
-	Traffic    int      `json:"traffic"` //Gigabytes
-	Period     int      `json:"period"`  //Days
-	Price      int      `json:"price"`   //Toman
-	CategoryID uint     `json:"category_id"`
-	Category   Category `json:"category"`
+	Traffic    int        `json:"traffic"` //Gigabytes
+	Period     int        `json:"period"`  //Days
+	Price      int        `json:"price"`   //Toman
+	CategoryID uint       `json:"category_id"`
+	Category   Category   `json:"category"`
+	Status     PackStatus `json:"status" gorm:"default:undefined"`
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {
 	db.AutoMigrate(&Pack{})
+}
+
+func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
+	db.Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
 }
 
 func (pack Pack) Name() string {
@@ -29,9 +42,23 @@ func (pack Pack) String() string {
 	return fmt.Sprintf("حجم %d گیگابایت | %d روزه | %d تومان", pack.Traffic, pack.Period, pack.Price)
 }
 
+func (pack Pack) FullStr() string {
+	return fmt.Sprintf("دسته بندی:%s\nترافیک: %dGB\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Category.Name, pack.Traffic, pack.Period, pack.Price, pack.Status)
+}
+
+func (pack *Pack) Active(db *gorm.DB) error {
+	pack.Status = ActivePack
+	return pack.Store(db)
+}
+
+func (pack *Pack) Deactive(db *gorm.DB) error {
+	pack.Status = UnactivePack
+	return pack.Store(db)
+}
+
 func (pack *Pack) Store(db *gorm.DB) error {
 	if result := db.Save(pack); result.RowsAffected == 0 {
-		return fmt.Errorf("Error: unable to store pack. Details: %v\n", result.Error)
+		return fmt.Errorf("error: unable to store pack. Details: %v\n", result.Error)
 	}
 	return nil
 }
@@ -46,5 +73,16 @@ func PackValidator(fieldName string) form.Validator {
 			_, err = strconv.Atoi(value)
 		}
 		return err == nil, "فرمت ورودی نادرست است. لطفا ورودی را دوباره با فرمت درست وارد کنید."
+	}
+}
+
+func (ps PackStatus) String() string {
+	switch ps {
+	case ActivePack:
+		return "فعال"
+	case UnactivePack:
+		return "غیرفعال"
+	default:
+		return "نامشخص"
 	}
 }
