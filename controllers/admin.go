@@ -51,6 +51,9 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				{
 					{Text: "ارسال پیام همگانی", NodeID: "bulk-message"},
 				},
+				{
+					{Text: "مدیریت کارت ها", NodeID: "card-manage"},
+				},
 			},
 		},
 		{
@@ -96,6 +99,22 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 						ID:              "add-guide",
 						Text:            "افزودن دکمه راهنما",
 						CallbackHandler: auth.AdminMiddleware(adminController.AddGuideHandler),
+					},
+				},
+				{
+					{Text: "بازگشت", NodeID: "admin-panel"},
+				},
+			},
+		},
+		{
+			ID:   "card-manage",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "add-card",
+						Text:            "افزودن کارت",
+						CallbackHandler: auth.AdminMiddleware(adminController.AddCardHandler),
 					},
 				},
 				{

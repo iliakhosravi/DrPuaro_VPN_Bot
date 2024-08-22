@@ -30,9 +30,9 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		ShowAlert:       false,
 	})
 
-	var card models.Card
+	var card models.Card = models.GetActiveCard(db)
 	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله خرید شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین کانفیگ به صورت خودکار برای شما ارسال خواهد شد."
-	if result := db.First(&card); result.RowsAffected > 0 {
+	if (card != models.Card{}) {
 		txtMsg = fmt.Sprintf("%s\nشماره کارت: %s\nبه نام: %s", txtMsg, card.Number, card.Fullname)
 	} else {
 		txtMsg = "خطایی پیش آمده"
