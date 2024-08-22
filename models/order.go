@@ -156,6 +156,10 @@ func (order *Order) Config(db *gorm.DB) *Config {
 	return &config
 }
 
+func (o *Order) UserStr(db *gorm.DB) string {
+	return o.FullStr(db)
+}
+
 func (o *Order) FullStr(db *gorm.DB) string {
 	var txtMsg string
 	var order Order

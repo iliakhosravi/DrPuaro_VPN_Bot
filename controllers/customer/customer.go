@@ -7,7 +7,6 @@ import (
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
-	ptime "github.com/yaa110/go-persian-calendar"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	m "techybat.org/go-vpn/models"
@@ -77,21 +76,11 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var order m.Order
 	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
 
-	var txtMsg string
-	if order.Type == m.ActiveOrder {
-		config := order.Config(db)
-		pt := ptime.New(config.StartDate)
-		showDate := pt.Format("d MMM y")
-		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ شروع:%v\nتوضیحات:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, config.Link)
-	} else {
-		pt := ptime.New(order.CreatedAt)
-		showDate := pt.Format("d MMM y")
-		txtMsg = fmt.Sprintf("شماره سفارش:%d\nوضعیت سفارش:%s\nگروه بسته:%s\nنوع بسته:%s\nتاریخ درخواست:%v\nتوضیحات ادمین:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
-	}
+	txtMsg := order.UserStr(db)
 	if _, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
-		Text:        txtMsg + "\n\n" + update.CallbackQuery.Message.Message.Text,
+		Text:        txtMsg,
 		ReplyMarkup: update.CallbackQuery.Message.Message.ReplyMarkup,
 	}); err != nil {
 		fmt.Println("Error for show order handler: ", err)
