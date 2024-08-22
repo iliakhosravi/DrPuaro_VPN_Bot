@@ -33,7 +33,6 @@ func UserMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 		}
 		user.CreateOrFindUserByTelegram(database.GetDB(), tuser)
 		ctx = context.WithValue(ctx, UserKey, user)
-		fmt.Printf("ctx:%v\tbot:%v\tupdate:%v\n", ctx, b, update)
 		next(ctx, b, update)
 	}
 }
