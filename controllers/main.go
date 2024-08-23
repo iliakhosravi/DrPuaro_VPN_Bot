@@ -139,31 +139,57 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 		var packs []models.Pack
 		models.GetActivePacksByCatID(db, &packs, category.ID)
 
-		packsNode := dialog.Node{
+		packPeriods := models.GetPackPeriods(packs)
+		periodsNode := dialog.Node{
 			ID:       strCatID,
-			Text:     bot.EscapeMarkdown(fmt.Sprintf("دسته بندی:%s\nتوضیحات:%s\nبسته مورد نظر خود را انتخاب کنید", category.Name, category.Description)),
-			Keyboard: make([][]dialog.Button, len(packs)+1),
+			Text:     "مدت مورد نظر بسته خود را انتخاب کنید",
+			Keyboard: make([][]dialog.Button, 0),
 		}
 
-		packsNode.Keyboard[len(packs)] = make([]dialog.Button, 1)
-		packsNode.Keyboard[len(packs)][0] = dialog.Button{
+		packsNodes := make([]dialog.Node, 0)
+
+		for period := range packPeriods {
+			packNodeID := fmt.Sprintf("cat_%d_%d", category.ID, period)
+			row := []dialog.Button{
+				{
+					Text:   fmt.Sprintf("%d روزه", period),
+					NodeID: packNodeID,
+				},
+			}
+			periodsNode.Keyboard = append(periodsNode.Keyboard, row)
+
+			packNode := dialog.Node{
+				ID:       packNodeID,
+				Text:     bot.EscapeMarkdown(fmt.Sprintf("لطفا بسته مورد نظر خود را انتخاب کنید.\nدسته بندی: %s\nتوضیحات: %s\nمدت: %d روزه", category.Name, category.Description, period)),
+				Keyboard: make([][]dialog.Button, 0),
+			}
+
+			for _, pack := range packPeriods[period] {
+				strPackID := strconv.FormatUint(uint64(pack.ID), 10)
+				btnRow := []dialog.Button{{
+					ID:              "pack_" + strPackID,
+					Text:            pack.String(),
+					CallbackHandler: packHandler,
+					CallbackData:    strPackID,
+				}}
+				packNode.Keyboard = append(packNode.Keyboard, btnRow)
+			}
+			backBtnRow := []dialog.Button{{
+				Text:   "بازگشت",
+				NodeID: strCatID,
+			}}
+			packNode.Keyboard = append(packNode.Keyboard, backBtnRow)
+
+			packsNodes = append(packsNodes, packNode)
+		}
+
+		backBtnRow := []dialog.Button{{
 			Text:   "بازگشت",
 			NodeID: "categories",
-		}
-
-		for j, pack := range packs {
-			packsNode.Keyboard[j] = make([]dialog.Button, 1)
-
-			strPackID := strconv.FormatUint(uint64(pack.ID), 10)
-			packsNode.Keyboard[j][0] = dialog.Button{
-				ID:              "pack_" + strPackID,
-				Text:            pack.String(),
-				CallbackHandler: packHandler,
-				CallbackData:    strPackID,
-			}
-		}
-
-		packNodes = append(packNodes, packsNode)
+		}}
+		periodsNode.Keyboard = append(periodsNode.Keyboard, backBtnRow)
+		packNodes = append(packNodes, periodsNode)
+		packNodes = append(packNodes, packsNodes...)
 	}
 
 	return append(packNodes, catNode)

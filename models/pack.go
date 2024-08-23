@@ -86,3 +86,16 @@ func (ps PackStatus) String() string {
 		return "نامشخص"
 	}
 }
+
+func GetPackPeriods(packs []Pack) map[int][]Pack {
+	periodsMap := make(map[int][]Pack)
+	for _, pack := range packs {
+		_, exist := periodsMap[pack.Period]
+		if !exist {
+			periodsMap[pack.Period] = make([]Pack, 0)
+		}
+		periodsMap[pack.Period] = append(periodsMap[pack.Period], pack)
+	}
+
+	return periodsMap
+}
