@@ -135,7 +135,7 @@ func HandleEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	nodes := []dialog.Node{
 		{
 			ID:   "edit-pack",
-			Text: txtMsg,
+			Text: bot.EscapeMarkdown(txtMsg),
 			Keyboard: [][]dialog.Button{
 				{
 					{

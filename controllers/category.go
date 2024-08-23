@@ -114,7 +114,7 @@ func HandleEditCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	nodes := []dialog.Node{
 		{
 			ID:   "edit-cat",
-			Text: txtMsg,
+			Text: bot.EscapeMarkdown(txtMsg),
 			Keyboard: [][]dialog.Button{
 				{
 					{
@@ -185,6 +185,10 @@ func HandleEditCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 func onActiveCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
 	catID := update.CallbackQuery.Data
 	db := database.GetDB()
 	var cat models.Category
@@ -204,6 +208,10 @@ func onActiveCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 func onRemoveCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
 	catID := update.CallbackQuery.Data
 	db := database.GetDB()
 	var cat models.Category

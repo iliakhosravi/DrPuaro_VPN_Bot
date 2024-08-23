@@ -278,6 +278,11 @@ func passOrder(next onEditOrder, order m.Order) bot.HandlerFunc {
 
 func changeOrderTypeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+
 	data := strings.Split(update.CallbackQuery.Data, "_")
 	orderID := data[0]
 	var orderType m.OrderType = m.OrderType(data[1])
