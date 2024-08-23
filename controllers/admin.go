@@ -50,6 +50,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				},
 				{
 					{ID: "bulk-message", Text: "ارسال پیام همگانی", CallbackHandler: auth.AdminMiddleware(adminController.SendToAllMsgHandler)},
+					{ID: "pv-message", Text: "ارسال پیام به کاربر خاص", CallbackHandler: auth.AdminMiddleware(adminController.SendMsgHandler)},
 				},
 				{
 					{Text: "مدیریت کارت ها", NodeID: "card-manage"},

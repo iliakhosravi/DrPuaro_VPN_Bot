@@ -5,6 +5,7 @@ import (
 
 	tmodels "github.com/go-telegram/bot/models"
 	"gorm.io/gorm"
+	"techybat.org/go-vpn/widgets/form"
 )
 
 type UserType string
@@ -86,4 +87,15 @@ func (ut UserType) String() string {
 
 func (user *User) String() string {
 	return fmt.Sprintf("آیدی تلگرام: %d\nنام: %s\nنام خانوادگی: %s\nنام کاربری: %s\nنوع: %s\n", user.TelID, user.FirstName, user.LastName, user.Username, user.Type)
+}
+
+func UserIDValidator(db *gorm.DB) form.Validator {
+	return func(userID string) (bool, string) {
+		var user User
+		res := db.Where("tel_id = ?", userID).First(&user)
+		if res.RowsAffected == 0 {
+			return false, "چنین کاربری یافت نشد. دوباره وارد کنید."
+		}
+		return true, ""
+	}
 }

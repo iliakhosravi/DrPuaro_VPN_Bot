@@ -13,6 +13,65 @@ import (
 	"techybat.org/go-vpn/widgets/form"
 )
 
+func SendMsgHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.From.ID
+	userID := update.CallbackQuery.From.ID
+	db := database.GetDB()
+	fields := []form.Field{
+		{
+			Name:          "message",
+			MessageText:   "لطفا پیام خود را ارسال نمایید",
+			Type:          form.CustomTextField,
+			CustomHandler: onInputMsg,
+		},
+		{
+			Name:        "user_id",
+			MessageText: "آیدی کاربر را ارسال کنید",
+			Validator:   m.UserIDValidator(db),
+		},
+		{
+			Name:        "check",
+			MessageText: "آیا از ارسال این پیام به  این کاربر اطمینان دارید؟",
+			Type:        form.ButtonField,
+			Keyboard: [][]tmodels.InlineKeyboardButton{
+				{
+					{
+						Text:         "بله",
+						CallbackData: "true",
+					},
+				},
+			},
+		},
+	}
+	form := form.CreateForm("انصراف", fields, chatID, userID, onSendMsg, onCancelSendMsg, nil)
+	form.Show(ctx, b, update)
+}
+
+func onCancelSendMsg(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+}
+
+func onSendMsg(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	form := ctx.Value(form.FORM_KEY).(*form.Form)
+	msgID, _ := strconv.Atoi(form.FindField("message").Value)
+	userID := form.FindField("user_id").Value
+	_, err := b.CopyMessage(ctx, &bot.CopyMessageParams{
+		FromChatID: fmt.Sprintf("%d", form.ChatID),
+		ChatID:     userID,
+		MessageID:  msgID,
+	})
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "خطایی پیش آمده. پیام ارسال نشد.",
+		})
+	} else {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "پیام شما به کاربر ارسال شد.",
+		})
+	}
+}
+
 func SendToAllMsgHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.From.ID
 	userID := update.CallbackQuery.From.ID
