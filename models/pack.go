@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -9,11 +10,17 @@ import (
 )
 
 type PackStatus string
+type PackType string
 
 const (
 	UndefinedPack PackStatus = "undefined"
 	ActivePack    PackStatus = "active"
 	UnactivePack  PackStatus = "unactive"
+)
+
+const (
+	CustomPack PackType = "custom"
+	SanaeiPack PackType = "sanaei"
 )
 
 type Pack struct {
@@ -24,6 +31,8 @@ type Pack struct {
 	CategoryID uint       `json:"category_id"`
 	Category   Category   `json:"category"`
 	Status     PackStatus `json:"status" gorm:"default:undefined"`
+	InboundID  int        `json:"inbound_id" gorm:"default:-1"`
+	Type       PackType   `json:"type"`
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {
@@ -42,6 +51,10 @@ func (pack Pack) String() string {
 	return fmt.Sprintf("حجم %d گیگابایت | %d روزه | %d تومان", pack.Traffic, pack.Period, pack.Price)
 }
 
+func (pack Pack) ConfigDesc() string {
+	return fmt.Sprintf("%s | %s", os.Getenv("TELEGRAM_CHANNEL"), pack.Name())
+}
+
 func (pack Pack) FullStr() string {
 	return fmt.Sprintf("دسته بندی:%s\nترافیک: %dGB\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Category.Name, pack.Traffic, pack.Period, pack.Price, pack.Status)
 }
@@ -58,7 +71,7 @@ func (pack *Pack) Deactive(db *gorm.DB) error {
 
 func (pack *Pack) Store(db *gorm.DB) error {
 	if result := db.Save(pack); result.RowsAffected == 0 {
-		return fmt.Errorf("error: unable to store pack. Details: %v\n", result.Error)
+		return fmt.Errorf("error: unable to store pack. Details: %s", result.Error)
 	}
 	return nil
 }
@@ -69,6 +82,10 @@ func PackValidator(fieldName string) form.Validator {
 		switch fieldName {
 		case "category_id":
 			_, err = strconv.ParseUint(value, 10, 0)
+		case "type":
+			if value != string(CustomPack) && value != string(SanaeiPack) {
+				err = fmt.Errorf("no such pack type")
+			}
 		default:
 			_, err = strconv.Atoi(value)
 		}

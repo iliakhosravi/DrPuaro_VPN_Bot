@@ -14,7 +14,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
-	"techybat.org/go-vpn/widgets/buttonpage"
+	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
 
@@ -170,7 +170,7 @@ func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		})
 	}
 
-	buttonPage := buttonpage.CreateButtonPage(bot.EscapeMarkdown("لیست درخواست های ارسالی:"), orderBtns, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("لیست درخواست های ارسالی:"), orderBtns, 5, true)
 
 	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
 }
@@ -244,19 +244,20 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	orderID, _ := strconv.ParseUint(strOrderID, 10, 0)
 	var order models.Order
 	db.Preload("User").Preload("Pack").First(&order, orderID)
-
-	carryMsg := form.FindField("carry_msg").Value
+	order.AdminNote = form.FindField("carry_msg").Value
 	var txtMsg, orderResult string
 	if ok == "true" {
-		err := order.Verify(db, carryMsg)
+		err := order.Verify(db, order.AdminNote)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
+			fmt.Println("Unable to verify order. err: ", err)
 		} else {
-			txtMsg = fmt.Sprintf("سفارش کاربر تایید شد. کد درخواست: %d", orderID)
+			txtMsg = fmt.Sprintf("سفارش کاربر تایید شد. کد درخواست: %d", order.ID)
 			orderResult = "<b>تایید شده✅</b>"
 		}
+
 	} else {
-		err := order.Dismiss(db, carryMsg)
+		err := order.Dismiss(db, order.AdminNote)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
 		} else {
@@ -265,19 +266,24 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		}
 	}
 
-	carryMsg = fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, form.FindField("carry_msg").Value)
+	carryMsg := fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, order.AdminNote)
+
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    order.User.TelID,
 		Text:      carryMsg,
 		ParseMode: tmodels.ParseModeHTML,
 	})
-
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
-
 	ShowAdminDialog(ctx, b, update, form.ChatID)
+
+}
+func passOrder(next func(ctx context.Context, bot *bot.Bot, update *tmodels.Update, order *models.Order), order *models.Order) bot.HandlerFunc {
+	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
+		next(ctx, bot, update, order)
+	}
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

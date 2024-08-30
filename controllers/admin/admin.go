@@ -169,9 +169,9 @@ func editConfigHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	}
 	fields := []form.Field{
 		{
-			Name:        "link",
-			MessageText: fmt.Sprintf("لینک یا محتویات کانفیگ را در قالب متن وارد نمایید.\nمقدار فعلی:%s", config.Link),
-			Value:       config.Link,
+			Name:        "sub_id",
+			MessageText: fmt.Sprintf("آیدی ساب خود را در قالب متن وارد نمایید.\nمقدار فعلی:%s", config.SubID),
+			Value:       config.SubID,
 			IsSkippable: true,
 		},
 		{
@@ -196,7 +196,7 @@ func onSubmitEditConfig(config *m.Config) bot.HandlerFunc {
 		db := database.GetDB()
 
 		strDate := form.FindField("start_date").Value
-		config.Link = form.FindField("link").Value
+		config.SubID = form.FindField("sub_id").Value
 		date, _ := time.Parse("2006-01-02", strDate)
 		config.StartDate = date
 

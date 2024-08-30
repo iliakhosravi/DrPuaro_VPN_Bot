@@ -12,7 +12,9 @@ import (
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/widgets/buttonpage"
+	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
 
@@ -20,7 +22,7 @@ type PackEditHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 
 func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	var catKeyboard = makeCatKeyboard(db)
+	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard(db)
 
 	fields := []form.Field{
 		{
@@ -45,6 +47,13 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Keyboard:    catKeyboard,
 			Validator:   models.PackValidator("category_id"),
 		},
+		{
+			Name:        "type",
+			MessageText: "نوع بسته چه باشد؟",
+			Type:        form.ButtonField,
+			Keyboard:    typeKeyboard,
+			Validator:   models.PackValidator("type"),
+		},
 	}
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
@@ -66,12 +75,26 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	period, _ := strconv.Atoi(form.FindField("period").Value)
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
+	packType := models.PackType(form.FindField("type").Value)
 
 	pack := models.Pack{
 		Traffic:    traffic,
 		Period:     period,
 		Price:      price,
 		CategoryID: uint(categoryID),
+		Type:       packType,
+	}
+
+	if pack.Type == models.SanaeiPack {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "درحال دریافت inbound ها از پنل...",
+		})
+		inBtns := createInboundsBtns(passPack(onPackInboundSubmit, pack))
+		inboundsPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است."), inBtns, 5, true)
+		inboundsPage.Show(ctx, b, form.ChatID)
+		fmt.Println("AFTER SHOW BUTTON PAGE")
+		return
 	}
 
 	txtMsg := "افزودن بسته با موفقیت انجام شد"
@@ -86,6 +109,25 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	})
 
 	ShowAdminDialog(ctx, b, update, form.ChatID)
+}
+
+func onPackInboundSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
+	inboundID, _ := strconv.Atoi(update.CallbackQuery.Data)
+	pack.InboundID = inboundID
+
+	txtMsg := "بسته با موفقیت ثبت شد"
+
+	if err := pack.Store(database.GetDB()); err != nil {
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	ShowAdminDialog(ctx, b, update, chatID)
 }
 
 func onCancelPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -249,7 +291,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var pack models.Pack
 	db.Preload("Category").Order("created_at desc").Find(&pack, packID)
 
-	var catKeyboard = makeCatKeyboard(db)
+	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard(db)
 
 	fields := []form.Field{
 		{
@@ -282,6 +324,15 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			IsSkippable: true,
 			Value:       fmt.Sprint(pack.Category.Name),
 		},
+		{
+			Name:        "type",
+			MessageText: "نوع بسته چه باشد؟",
+			Type:        form.ButtonField,
+			Keyboard:    typeKeyboard,
+			Value:       string(pack.Type),
+			IsSkippable: true,
+			Validator:   models.PackValidator("type"),
+		},
 	}
 	form := form.CreateForm("انصراف", fields, chatID, update.CallbackQuery.From.ID, passPack(onEditPackSubmit, pack), onCancelPack, nil)
 	form.SkipButtonText = "مقدار فعلی"
@@ -293,6 +344,21 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		MessageID:   update.CallbackQuery.Message.Message.ID,
 		ReplyMarkup: nil,
 	})
+}
+
+func makeTypeKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+	return [][]tmodels.InlineKeyboardButton{
+		{
+			{
+				Text:         "خام(بدون پنل)",
+				CallbackData: string(models.CustomPack),
+			},
+			{
+				Text:         "سنایی",
+				CallbackData: string(models.SanaeiPack),
+			},
+		},
+	}
 }
 
 func makeCatKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
@@ -328,6 +394,13 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 		pack.Category = models.Category{}
 	}
 
+	if pack.Type == models.SanaeiPack {
+		inBtns := createInboundsBtns(passPack(onPackInboundSubmit, pack))
+		inboundsPage := bp.CreateButtonPage("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است.", inBtns, 5, true)
+		inboundsPage.Show(ctx, b, form.ChatID)
+		return
+	}
+
 	txtMsg := "ویرایش دسته بندی با موفقیت انجام شد"
 	if err := pack.Store(database.GetDB()); err != nil {
 		txtMsg = "خطایی پیش آمده"
@@ -346,4 +419,23 @@ func passPack(next PackEditHandler, pack models.Pack) bot.HandlerFunc {
 	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
 		next(ctx, bot, update, pack)
 	}
+}
+
+func createInboundsBtns(handler bot.HandlerFunc) []dialog.Button {
+	btns := []dialog.Button{}
+	p := panel.GetPanel()
+	inbounds, _ := p.GetInbounds()
+	fmt.Println("THIS IS AFTER GET INBOUNDS: ", inbounds)
+	for _, inbound := range inbounds {
+		btn := dialog.Button{
+			ID:              fmt.Sprint(inbound.ID),
+			Text:            inbound.Remark,
+			CallbackHandler: handler,
+			CallbackData:    fmt.Sprint(inbound.ID),
+		}
+
+		btns = append(btns, btn)
+	}
+	fmt.Println("\n\nTHESE ARE INBOUND_BTNS: ", btns)
+	return btns
 }

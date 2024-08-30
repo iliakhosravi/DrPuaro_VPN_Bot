@@ -3,10 +3,12 @@ package models
 import (
 	"fmt"
 
+	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"techybat.org/go-vpn/panel"
 )
 
 type OrderType string
@@ -76,13 +78,39 @@ func (order *Order) GetReceipt(db *gorm.DB) Receipt {
 }
 
 func (order *Order) Verify(db *gorm.DB, adminNote string) error {
+	var o Order
+	db.Preload(clause.Associations).Find(&o, order.ID)
 	order.Type = ActiveOrder
 	order.AdminNote = adminNote
+
 	var config Config = Config{}
 	db.Where(&Config{OrderID: order.ID}).First(&config)
 	config.OrderID = order.ID
-	config.Link = adminNote
 	config.StartDate = ptime.Now().Time()
+
+	if o.Pack.Type == SanaeiPack {
+		p := panel.GetPanel()
+		clientForm := panel.ClientForm{
+			ID:         o.User.UUID,
+			Email:      fmt.Sprintf("U%d O%d", order.UserID, order.ID),
+			TotalGB:    int64(o.Pack.Traffic) * panel.ONE_GB,
+			ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
+			Enable:     true,
+			TgID:       fmt.Sprint(o.User.TelID),
+			SubID:      bot.RandomString(8),
+		}
+
+		if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
+			return err
+		}
+		if _, err := p.ResetClientStats(o.Pack.InboundID, clientForm.Email); err != nil {
+			return err
+		}
+
+		config.SubID = clientForm.SubID
+		config.Email = clientForm.Email
+
+	}
 	if result := db.Save(&config); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to update to verify order: %v", result.Error)
 	}
@@ -171,7 +199,7 @@ func (o *Order) FullStr(db *gorm.DB) string {
 		startDate := pt.Format(dateFormat)
 		pt = ptime.New(order.CreatedAt)
 		orderDate := pt.Format(dateFormat)
-		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ شروع بسته: %s\nلینک بسته: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, config.Link)
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ شروع بسته: %s\nلینک بسته: %s\nلینک جیسون بسته: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, config.Link(db), config.JSONLink(db))
 	} else {
 		pt := ptime.New(order.CreatedAt)
 		showDate := pt.Format("d MMM y")
