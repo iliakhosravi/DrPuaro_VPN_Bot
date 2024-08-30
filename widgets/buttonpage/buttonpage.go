@@ -69,7 +69,7 @@ func (buttonPage *ButtonPage) initNodes() {
 			nodes = append(nodes, currentNode)
 			currentNode = dialog.Node{
 				ID:       fmt.Sprintf("Page%d", page),
-				Text:     fmt.Sprintf("%s\n(%d/%d)", buttonPage.Title, page, pagesCount),
+				Text:     fmt.Sprintf("%s\n\\(%d/%d\\)", buttonPage.Title, page, pagesCount),
 				Keyboard: [][]dialog.Button{},
 			}
 		}
