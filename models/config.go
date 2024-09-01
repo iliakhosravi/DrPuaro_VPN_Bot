@@ -6,8 +6,10 @@ import (
 	"os"
 	"time"
 
+	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"techybat.org/go-vpn/panel"
 )
 
 type Config struct {
@@ -53,4 +55,35 @@ func (config *Config) JSONLink(db *gorm.DB) string {
 	}
 
 	return c.Order.AdminNote
+}
+
+func (config *Config) EndDate(db *gorm.DB) (ptime.Time, error) {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	if c.Order.Pack.Type == SanaeiPack {
+		panel := panel.GetPanel()
+		client, err := panel.GetClient(config.Email)
+		if err != nil {
+			fmt.Println("error: unable to retrieve client from panel for endDate", err)
+			return ptime.Time{}, err
+		}
+		return ptime.Unix(client.ExpiryTime/1000, client.ExpiryTime%1000*1000), nil
+	}
+
+	return ptime.New(c.StartDate.AddDate(0, 0, c.Order.Pack.Period)), nil
+}
+
+func (config *Config) RemainedTraffic(db *gorm.DB) (float32, error) {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	if c.Order.Pack.Type == SanaeiPack {
+		panel := panel.GetPanel()
+		client, err := panel.GetClient(config.Email)
+		if err != nil {
+			fmt.Println("error unable to retrieve client from panel for remained traffic", err)
+			return 0.0, err
+		}
+		return client.RemainedTraffic(), nil
+	}
+	return 0, fmt.Errorf("no remained traffic for non-panel configs")
 }

@@ -152,6 +152,10 @@ func (panel *Panel) ResetClientStats(inboundID int, email string) (Client, error
 	return panel.GetClient(email)
 }
 
+func (client *Client) RemainedTraffic() float32 {
+	return float32(client.Total-client.Up+client.Down) / ONE_GB
+}
+
 // func generateClientPayload(uuid, email, tgId string, totalGB, limitIP int, expiryTime int64) string {
 // 	return fmt.Sprintf("{\"clients\":[{\"id\":\"%s\",\"alterId\":0,\"email\":\"%s\",\"limitIp\":%d,\"totalGB\":%d,\"expiryTime\":%d,\"enable\":true,\"tgId\":\"%s\",\"subId\":\"\"}]}", uuid, email, limitIP, totalGB, expiryTime, tgId)
 // }
