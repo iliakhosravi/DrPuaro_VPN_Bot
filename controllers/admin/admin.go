@@ -89,7 +89,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 						ID:              "deplete",
 						Text:            "بله",
 						CallbackHandler: changeOrderTypeHandler,
-						CallbackData:    orderID + "_" + m.DepletedOrder,
+						CallbackData:    orderID + "_" + string(m.DepletedOrder),
 					},
 					{
 						Text:   "برگشت",
@@ -107,7 +107,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 						ID:              "dismiss",
 						Text:            "بله",
 						CallbackHandler: changeOrderTypeHandler,
-						CallbackData:    orderID + "_" + m.DismissedOrder,
+						CallbackData:    orderID + "_" + string(m.DismissedOrder),
 					},
 					{
 						Text:   "برگشت",
@@ -125,7 +125,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 						ID:              "activate",
 						Text:            "بله",
 						CallbackHandler: changeOrderTypeHandler,
-						CallbackData:    orderID + "_" + m.ActiveOrder,
+						CallbackData:    orderID + "_" + string(m.ActiveOrder),
 					},
 					{
 						Text:   "برگشت",

@@ -15,12 +15,12 @@ type OrderType string
 
 const (
 	UndefinedOrder OrderType = "undefined"
-	SentOrder                = "sent"
-	PendingOrder             = "pending"
-	ActiveOrder              = "active"
-	DepletedOrder            = "depleted"
-	CancelledOrder           = "cancelled"
-	DismissedOrder           = "dismissed"
+	SentOrder      OrderType = "sent"
+	PendingOrder   OrderType = "pending"
+	ActiveOrder    OrderType = "active"
+	DepletedOrder  OrderType = "depleted"
+	CancelledOrder OrderType = "cancelled"
+	DismissedOrder OrderType = "dismissed"
 )
 
 type Order struct {

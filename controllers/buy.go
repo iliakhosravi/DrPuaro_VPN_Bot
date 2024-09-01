@@ -11,6 +11,7 @@ import (
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
+	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
@@ -87,6 +88,89 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		ReplyMarkup: nil,
 	})
 
+}
+
+func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	userID := update.CallbackQuery.From.ID
+	db := database.GetDB()
+	var card models.Card = models.GetActiveCard(db)
+	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله شارژ شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین به صورت خودکار اکانت شما شارژ خواهد شد."
+	if (card != models.Card{}) {
+		txtMsg = fmt.Sprintf("%s\nشماره کارت: %s\nبه نام: %s", txtMsg, card.Number, card.Fullname)
+	} else {
+		txtMsg = "خطایی پیش آمده"
+	}
+	fields := []form.Field{
+		{
+			Name:        "amount",
+			MessageText: "میزانی که می خواهید شارژ کنید را به تومان وارد کنید.",
+			Validator:   models.MoneyValidator,
+		},
+		{
+			Name:          "receipt",
+			Type:          form.CustomTextField,
+			MessageText:   txtMsg,
+			CustomHandler: onChargeReceipt,
+		},
+	}
+	form := form.CreateForm("انصراف", fields, chatID, userID, onSubmitCharge, onCancelCharge, nil)
+	form.Show(ctx, b, update)
+}
+
+func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	user := ctx.Value(auth.UserKey).(models.User)
+	form := ctx.Value(form.FORM_KEY).(*form.Form)
+	amount, _ := strconv.ParseUint(form.FindField("amount").Value, 0, 0)
+	msgID, _ := strconv.Atoi(form.FindField("receipt").Value)
+
+	chargeOrder := models.ChargeOrder{
+		UserID: user.ID,
+		Amount: uint(amount),
+		Type:   models.SentCharge,
+	}
+
+	txtMsg := "درخواست شارژ شما با موفقیت ثبت شد. کد رسید: "
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if result := tx.Create(&chargeOrder); result.Error != nil {
+			return result.Error
+		}
+		receipt, err := chargeOrder.AddReceipt(tx, msgID)
+		if err != nil {
+			return err
+		}
+
+		txtMsg += fmt.Sprintf("%d", receipt.ID)
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error: unable to save chargeOrder. err: ", err)
+		txtMsg = "خطایی پیش آمده"
+	}
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		Text:   txtMsg,
+		ChatID: form.ChatID,
+	})
+}
+
+func onCancelCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {}
+
+func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
+	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
+		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
+		MessageID:  update.Message.ID,
+	})
+
+	if err != nil {
+		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
+		return false, fmt.Errorf("unable to forward receipt to storage channel. error:", err)
+	}
+
+	ok, strErr := setter(fmt.Sprintf("%d", msg.ID))
+	return ok, fmt.Errorf(strErr)
 }
 
 func RetrieveUserReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

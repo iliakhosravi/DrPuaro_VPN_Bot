@@ -79,12 +79,12 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 			Text: "انتخاب کنید",
 			Keyboard: [][]dialog.Button{
 				{
-					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: adminController.OrdersHandler, CallbackData: models.ActiveOrder},
-					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: adminController.OrdersHandler, CallbackData: models.DepletedOrder},
+					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: adminController.OrdersHandler, CallbackData: string(models.ActiveOrder)},
+					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: adminController.OrdersHandler, CallbackData: string(models.DepletedOrder)},
 				},
 				{
-					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: adminController.OrdersHandler, CallbackData: models.PendingOrder},
-					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: adminController.OrdersHandler, CallbackData: models.DismissedOrder},
+					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: adminController.OrdersHandler, CallbackData: string(models.PendingOrder)},
+					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: adminController.OrdersHandler, CallbackData: string(models.DismissedOrder)},
 				},
 				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
