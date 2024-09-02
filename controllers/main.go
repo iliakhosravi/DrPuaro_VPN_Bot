@@ -48,6 +48,7 @@ func NewMainDialog() []dialog.Node {
 					{Text: "بسته های خریداری شده", NodeID: "orders"},
 				},
 				{
+					{ID: "balance", Text: "کیف پول", CallbackHandler: BalanceHandler},
 					{ID: "charge-account", Text: "شارژ اکانت", CallbackHandler: ChargeHandler},
 				},
 			},
