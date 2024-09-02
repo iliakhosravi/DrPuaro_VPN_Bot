@@ -89,6 +89,11 @@ func (config *Config) RemainedTraffic(db *gorm.DB) (float32, error) {
 	return 0, fmt.Errorf("no remained traffic for non-panel configs")
 }
 
+func (config *Config) GetClient() (panel.Client, error) {
+	panel := panel.GetPanel()
+	return panel.GetClient(config.Email)
+}
+
 func (config *Config) Sync(db *gorm.DB) error {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
@@ -96,18 +101,24 @@ func (config *Config) Sync(db *gorm.DB) error {
 		return nil
 	}
 
-	panel := panel.GetPanel()
-	client, err := panel.GetClient(config.Email)
+	client, err := c.GetClient()
 	if err != nil {
 		return err
 	}
 
-	if client.Enable {
-		c.Order.Type = ActiveOrder
-	} else {
-		c.Order.Type = DepletedOrder
+	return c.SyncByClient(db, client)
+}
+
+func (c *Config) SyncByClient(db *gorm.DB, client panel.Client) error {
+	var err error = nil
+	if (client.Enable && c.Order.Type != ActiveOrder) || (!client.Enable && c.Order.Type == ActiveOrder) {
+		if client.Enable {
+			c.Order.Type = ActiveOrder
+		} else {
+			c.Order.Type = DepletedOrder
+		}
+		c.Order.AdminNote = "آخرین تغییر وضعیت بسته توسط سیستم به صورت خودکار انجام شده است."
+		err = db.Save(&c.Order).Error
 	}
-	c.Order.AdminNote = "آخرین تغییر وضعیت بسته توسط سیستم به صورت خودکار انجام شده است."
-	err = db.Save(&c.Order).Error
 	return err
 }

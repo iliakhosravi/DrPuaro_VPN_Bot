@@ -50,6 +50,8 @@ func GetDB() *gorm.DB {
 		db = dbInstance
 
 		// db.Logger = logger.Default.LogMode(logger.Info)
+
+		// db.Debug()
 	})
 
 	return db
