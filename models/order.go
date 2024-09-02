@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-telegram/bot"
+	"github.com/google/uuid"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -86,8 +87,8 @@ func (order *Order) Verify(db *gorm.DB, adminNote string) error {
 	if o.Pack.Type == SanaeiPack {
 		p := panel.GetPanel()
 		clientForm := panel.ClientForm{
-			ID:         o.User.UUID,
-			Email:      fmt.Sprintf("U%d O%d", order.UserID, order.ID),
+			ID:         uuid.NewString(),
+			Email:      fmt.Sprintf("U%d_O%d", order.UserID, order.ID),
 			TotalGB:    int64(o.Pack.Traffic) * panel.ONE_GB,
 			ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
 			Enable:     true,
@@ -104,7 +105,7 @@ func (order *Order) Verify(db *gorm.DB, adminNote string) error {
 
 		config.SubID = clientForm.SubID
 		config.Email = clientForm.Email
-
+		config.UUID = clientForm.ID
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {

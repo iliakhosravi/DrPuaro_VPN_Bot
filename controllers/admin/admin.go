@@ -147,11 +147,56 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		})
 	}
 
+	if order.HasConfig(db) && order.Pack.Type == m.SanaeiPack {
+		nodes[0].Keyboard = [][]dialog.Button{
+			{
+				{
+					ID:              "sync-config",
+					Text:            "همگام سازی با پنل",
+					CallbackHandler: syncConfigHandler,
+					CallbackData:    fmt.Sprintf("%d", order.Config(db).ID),
+				},
+			},
+		}
+	}
+
 	dialog := dialog.New(nodes, dialog.Inline())
 
 	if _, err := dialog.Show(ctx, b, chatID, "manage-orders"); err != nil {
 		fmt.Println("Error cannot show manage orders", err)
 	}
+}
+
+func syncConfigHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	db := database.GetDB()
+	configID := update.CallbackQuery.Data
+	var config m.Config
+	db.Preload(clause.Associations).Preload("Order.User").Find(&config, configID)
+
+	txtMsg := "همگام سازی با پنل با موفقیت انجام شد."
+	if err := config.Sync(db); err != nil {
+		fmt.Println("Error: Unable to sync config. err:", err)
+		txtMsg = "خطایی پیش آمده."
+	} else {
+		b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+			ChatID:    chatID,
+			MessageID: update.CallbackQuery.Message.Message.ID,
+		})
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	txtMsg = "یکی از کانفیگ های شما مرتبط با سفارشی با مشخصات زیر تغییر یافته است..\n\n"
+	txtMsg += config.Order.FullStr(db)
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: config.Order.User.TelID,
+		Text:   txtMsg,
+	})
 }
 
 func editConfigHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -211,7 +256,7 @@ func onSubmitEditConfig(config *m.Config) bot.HandlerFunc {
 			Text:   txtMsg,
 		})
 
-		txtMsg = "یکی از کانفیگ های شما مرتبط با سفارشی با مشخصات زیر تغییر یافته است. برای اطلاع از تغییرات از طریق منوی اصلی بسته های خود را بررسی نمایید.\n\n"
+		txtMsg = "یکی از کانفیگ های شما مرتبط با سفارشی با مشخصات زیر تغییر یافته است..\n\n"
 		txtMsg += config.Order.FullStr(db)
 
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
@@ -261,7 +306,7 @@ func onEditNoteOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update, or
 		Text:   txtMsg,
 	})
 
-	txtMsg = "توضیحات جدیدی برای یکی از سفارشات شما با مشخصات زیر از طریق ادمین قرارگرفته است. برای اطلاع از تغییرات از طریق منوی اصلی بسته های خود را بررسی نمایید.\n\n"
+	txtMsg = "توضیحات جدیدی برای یکی از سفارشات شما با مشخصات زیر از طریق ادمین قرارگرفته است..\n\n"
 	txtMsg += order.FullStr(db)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{

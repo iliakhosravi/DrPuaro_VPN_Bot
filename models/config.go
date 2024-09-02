@@ -19,6 +19,7 @@ type Config struct {
 	Order     Order     `json:"order"`
 	Email     string    `json:"email"`
 	SubID     string    `json:"subId"`
+	UUID      string    `json:"uuid"`
 }
 
 func (config *Config) Migrate(db *gorm.DB) {
@@ -86,4 +87,27 @@ func (config *Config) RemainedTraffic(db *gorm.DB) (float32, error) {
 		return client.RemainedTraffic(), nil
 	}
 	return 0, fmt.Errorf("no remained traffic for non-panel configs")
+}
+
+func (config *Config) Sync(db *gorm.DB) error {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	if c.Order.Pack.Type != SanaeiPack {
+		return nil
+	}
+
+	panel := panel.GetPanel()
+	client, err := panel.GetClient(config.Email)
+	if err != nil {
+		return err
+	}
+
+	if client.Enable {
+		c.Order.Type = ActiveOrder
+	} else {
+		c.Order.Type = DepletedOrder
+	}
+	c.Order.AdminNote = "آخرین تغییر وضعیت بسته توسط سیستم به صورت خودکار انجام شده است."
+	err = db.Save(&c.Order).Error
+	return err
 }
