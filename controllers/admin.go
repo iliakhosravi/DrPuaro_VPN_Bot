@@ -53,7 +53,40 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{ID: "pv-message", Text: "ارسال پیام به کاربر خاص", CallbackHandler: auth.AdminMiddleware(adminController.SendMsgHandler)},
 				},
 				{
+					{
+						Text: "بررسی درخواست های شارژ", NodeID: "charges-list",
+					},
+				},
+				{
 					{Text: "مدیریت کارت ها", NodeID: "card-manage"},
+				},
+			},
+		},
+		{
+			ID:   "charges-list",
+			Text: "نوع درخواست شارژ را انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "Pending",
+						Text:            "درانتظار تایید",
+						CallbackHandler: auth.AdminMiddleware(adminController.ChargeOrdersHandler),
+						CallbackData:    string(models.PendingCharge),
+					},
+				},
+				{
+					{
+						ID:              "Accepted",
+						Text:            "تایید شده",
+						CallbackHandler: auth.AdminMiddleware(adminController.ChargeOrdersHandler),
+						CallbackData:    string(models.AcceptedCharge),
+					},
+					{
+						ID:              "Dismissed",
+						Text:            "رد شده",
+						CallbackHandler: auth.AdminMiddleware(adminController.ChargeOrdersHandler),
+						CallbackData:    string(models.DismissedCharge),
+					},
 				},
 			},
 		},

@@ -24,6 +24,7 @@ type User struct {
 	Username  string   `json:"username"`
 	UUID      string   `json:"uuid"`
 	Type      UserType `json:"user_type" gorm:"default:normal"`
+	Charge    uint64   `json:"charge"`
 }
 
 func (user *User) Migrate(db *gorm.DB) {

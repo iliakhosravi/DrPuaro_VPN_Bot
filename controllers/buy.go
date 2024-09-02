@@ -128,7 +128,7 @@ func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chargeOrder := models.ChargeOrder{
 		UserID: user.ID,
 		Amount: uint(amount),
-		Type:   models.SentCharge,
+		Type:   models.PendingCharge,
 	}
 
 	txtMsg := "درخواست شارژ شما با موفقیت ثبت شد. کد رسید: "
