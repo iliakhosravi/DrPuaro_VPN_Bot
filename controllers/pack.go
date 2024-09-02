@@ -13,7 +13,6 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
-	"techybat.org/go-vpn/widgets/buttonpage"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -22,7 +21,7 @@ type PackEditHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 
 func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard(db)
+	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard()
 
 	fields := []form.Field{
 		{
@@ -156,7 +155,7 @@ func EditPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 	}
 
 	title := bot.EscapeMarkdown("شما می توانید بسته های ثبت شده زیر را ویرایش کنید.\nبسته موردنظر را انتخاب کنید:")
-	buttonPage := buttonpage.CreateButtonPage(title, buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(title, buttons, 5, true)
 	buttonPage.Show(ctx, b, update.CallbackQuery.Message.Message.Chat.ID)
 
 	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
@@ -291,7 +290,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var pack models.Pack
 	db.Preload("Category").Order("created_at desc").Find(&pack, packID)
 
-	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard(db)
+	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard()
 
 	fields := []form.Field{
 		{
@@ -346,7 +345,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	})
 }
 
-func makeTypeKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 	return [][]tmodels.InlineKeyboardButton{
 		{
 			{
