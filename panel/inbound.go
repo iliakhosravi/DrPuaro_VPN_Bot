@@ -17,10 +17,10 @@ type Inbound struct {
 	Remark            string          `json:"remark"`
 	Enable            bool            `json:"enable"`
 	Port              int             `json:"port"`
-	strSettings       string          `json:"settings"`
-	strStreamSettings string          `json:"streamSettings"`
-	Settings          InboundSettings `json:"-"`
-	StreamSettings    StreamSettings  `json:"-"`
+	strSettings       string          `json:"-"`
+	strStreamSettings string          `json:"-"`
+	Settings          InboundSettings `json:"settings"`
+	StreamSettings    StreamSettings  `json:"streamSettings"`
 }
 
 type InboundClient struct {
