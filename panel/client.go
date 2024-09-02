@@ -79,16 +79,11 @@ func (panel *Panel) AddClient(inboundID int, clientForm ClientForm) (Client, err
 	}
 
 	var res BasicResponse
-	resp, err := panel.client.R().
-		EnableTrace().
+	_, err := panel.client.R().
 		SetBody(payload).
 		SetResult(&res).
 		Post(ADD_CLIENT_PATH)
 
-	curlCmdExecuted := resp.Request.GenerateCurlCommand()
-
-	// Explore curl command
-	fmt.Println("Curl Command:\n  ", curlCmdExecuted+"\n")
 	if err != nil {
 		return Client{}, fmt.Errorf("error: adding client failed.\nerr:%s", err)
 	}
