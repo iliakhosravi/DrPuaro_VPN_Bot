@@ -47,6 +47,61 @@ func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) e
 	return nil
 }
 
+func (user *User) BuyPackByCard(db *gorm.DB, pack *Pack, msgID int) (*Order, error) {
+	var order Order
+	err := db.Transaction(func(tx *gorm.DB) error {
+		order = Order{
+			UserID: user.ID,
+			PackID: pack.ID,
+			Type:   PendingOrder,
+		}
+
+		if err := order.CreateOrder(tx); err != nil {
+			return err
+		}
+
+		if _, err := order.AddReceipt(tx, msgID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return &order, err
+}
+
+func (user *User) BuyPackByCharge(db *gorm.DB, pack *Pack) (*Order, error) {
+	if user.Charge < uint64(pack.Price) {
+		return nil, fmt.Errorf("insufficient balance")
+	}
+	var order Order
+	err := db.Transaction(func(tx *gorm.DB) error {
+		order = Order{
+			UserID: user.ID,
+			PackID: pack.ID,
+			Type:   ActiveOrder,
+		}
+
+		if err := order.CreateOrder(tx); err != nil {
+			return err
+		}
+
+		if err := order.Verify(tx, "خرید سیستمی"); err != nil {
+			return err
+		}
+
+		user.Charge -= uint64(pack.Price)
+
+		if result := tx.Save(user); result.Error != nil {
+			return result.Error
+		}
+
+		return nil
+	})
+
+	return &order, err
+}
+
 func (user *User) MakeAdmin(db *gorm.DB) error {
 	user.Type = AdminUser
 	if result := db.Save(user); result.RowsAffected == 0 {

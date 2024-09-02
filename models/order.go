@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-telegram/bot"
-	tmodels "github.com/go-telegram/bot/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -46,14 +45,10 @@ func (order *Order) CreateOrder(db *gorm.DB) error {
 	return nil
 }
 
-func (order *Order) AddReceiptByMsg(db *gorm.DB, msg *tmodels.Message) (*Receipt, error) {
+func (order *Order) AddReceipt(db *gorm.DB, msgID int) (*Receipt, error) {
 	receipt := Receipt{
 		OrderID:   order.ID,
-		MessageID: msg.ID,
-	}
-	order.Type = PendingOrder
-	if result := db.Save(order); result.RowsAffected == 0 {
-		return nil, fmt.Errorf("unable to pend the order: %v", result.Error)
+		MessageID: msgID,
 	}
 
 	if result := db.Create(&receipt); result.RowsAffected == 0 {
@@ -111,14 +106,19 @@ func (order *Order) Verify(db *gorm.DB, adminNote string) error {
 		config.Email = clientForm.Email
 
 	}
-	if result := db.Save(&config); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to update to verify order: %v", result.Error)
-	}
 
-	if result := db.Save(order); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to update order to verify order: %v", result.Error)
-	}
-	return nil
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if result := tx.Save(&config); result.RowsAffected == 0 {
+			return fmt.Errorf("unable to update to verify order: %v", result.Error)
+		}
+
+		if result := tx.Save(order); result.RowsAffected == 0 {
+			return fmt.Errorf("unable to update order to verify order: %v", result.Error)
+		}
+		return nil
+	})
+
+	return err
 }
 
 func (order *Order) Dismiss(db *gorm.DB, adminNote string) error {

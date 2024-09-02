@@ -10,7 +10,6 @@ import (
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
-	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
@@ -21,15 +20,96 @@ import (
 
 func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	user := ctx.Value(auth.UserKey).(models.User)
-	// answering callback query first to let Telegram know that we received the callback query,
-	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
-	// as it thinks the callback query doesn't reach to our application. learn more by
-	// reading the footnote of the https://core.telegram.org/bots/api#callbackquery type.
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-		ShowAlert:       false,
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	packId := update.CallbackQuery.Data
+	var pack models.Pack
+	var packMsg string
+	if result := db.Where("status = ?", models.ActivePack).First(&pack, packId); result.RowsAffected == 0 {
+		packMsg = "این بسته در دسترس نمی باشد"
+	} else {
+		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید:", pack.String())
+	}
+
+	nodes := []dialog.Node{
+		{
+			ID:   "buy-options",
+			Text: "از چه طریقی می خواهید پرداخت انجام شود؟",
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						Text: "کیف پول", NodeID: "wallet",
+					},
+					{
+						ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: packId,
+					},
+				},
+			},
+		},
+		{
+			ID:   "wallet",
+			Text: "آیا از پرداخت با کیف پول خود اطمینان دارید؟",
+			Keyboard: [][]dialog.Button{
+				{
+					{ID: "wallet-btn", Text: "بله ✅", CallbackHandler: WalletBuyController, CallbackData: packId},
+					{
+						Text: "خیر ❌", NodeID: "buy-options",
+					},
+				},
+			},
+		},
+	}
+	dialog := dialog.New(nodes, dialog.Inline())
+
+	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		Text:        packMsg,
+		ReplyMarkup: nil,
 	})
+
+	dialog.Show(ctx, b, chatID, "buy-options")
+}
+
+func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	user := ctx.Value(auth.UserKey).(models.User)
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	packId, _ := strconv.Atoi(update.CallbackQuery.Data)
+	var pack models.Pack
+
+	db.First(&pack, packId)
+
+	if user.Charge < uint64(pack.Price) {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "موجودی شما کافی نیست!",
+		})
+		return
+	}
+
+	var txtMsg string
+	order, err := user.BuyPackByCharge(db, &pack)
+	if err != nil {
+		txtMsg = "خطایی پیش آمده"
+	} else {
+		txtMsg = fmt.Sprintf("سفارش شما ایجاد و تایید شد.\nاطلاعات سفارش:%s", order.FullStr(db))
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+}
+
+func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	user := ctx.Value(auth.UserKey).(models.User)
 
 	var card models.Card = models.GetActiveCard(db)
 	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله خرید شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین کانفیگ به صورت خودکار برای شما ارسال خواهد شد."
@@ -41,55 +121,54 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 	packId, _ := strconv.Atoi(update.CallbackQuery.Data)
 	var pack models.Pack
-	var packMsg string
 	if result := db.First(&pack, packId); result.RowsAffected == 0 {
 		txtMsg = "خطایی پیش آمده"
-		packMsg = "این بسته در دسترس نمی باشد"
-	} else {
-		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید:", pack.String())
-	}
-	cancelBtnText := "انصراف از خرید"
-
-	checkUser := func(checkUpdate *tmodels.Update) bool {
-		if checkUpdate.Message == nil || checkUpdate.Message.Text == cancelBtnText {
-			return false
-		}
-		return checkUpdate.Message.Chat.ID == update.CallbackQuery.From.ID
-	}
-	handlerID := b.RegisterHandlerMatchFunc(checkUser, RetrieveUserReceipt)
-
-	order := models.Order{
-		UserID:    user.ID,
-		PackID:    pack.ID,
-		Type:      models.SentOrder,
-		HandlerID: handlerID,
 	}
 
-	if err := order.CreateOrder(db); err != nil {
-		txtMsg = "خطایی پیش آمده"
-		b.UnregisterHandler(handlerID)
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	fields := []form.Field{
+		{
+			Name:          "receipt",
+			MessageText:   txtMsg,
+			Type:          form.CustomTextField,
+			CustomHandler: onCardReceipt,
+		},
 	}
+	form := form.CreateForm("انصراف از خرید", fields, chatID, user.TelID, passPack(onRetrieveReceipt, pack), onCancelRecipt, nil)
+	form.Show(ctx, b, update)
 
-	cancelReplyKeyboard := reply.New(
-		b,
-		reply.WithPrefix("cancel_order_keyboard"),
-	).Button(cancelBtnText, b, bot.MatchTypeExact, onCancelbuy)
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
-		Text:        txtMsg,
-		ReplyMarkup: cancelReplyKeyboard,
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
 	})
-
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID:   update.CallbackQuery.Message.Message.ID,
-		Text:        packMsg,
-		ReplyMarkup: nil,
-	})
-
 }
 
+func onCardReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
+	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
+		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
+		MessageID:  update.Message.ID,
+	})
+
+	if err != nil {
+		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
+		return false, err
+	}
+
+	ok, strErr := setter(fmt.Sprintf("%d", msg.ID))
+
+	return ok, fmt.Errorf(strErr)
+}
+
+func onCancelRecipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   "خرید شما با موفقیت لغو شد",
+	})
+
+	ShowMainDialog(ctx, b, update)
+}
 func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
@@ -166,69 +245,28 @@ func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, fo
 
 	if err != nil {
 		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
-		return false, fmt.Errorf("unable to forward receipt to storage channel. error:", err)
+		return false, fmt.Errorf("unable to forward receipt to storage channel. error: %s", err)
 	}
 
 	ok, strErr := setter(fmt.Sprintf("%d", msg.ID))
 	return ok, fmt.Errorf(strErr)
 }
 
-func RetrieveUserReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
 	db := database.GetDB()
 
 	user := ctx.Value(auth.UserKey).(models.User)
+	form := ctx.Value(form.FORM_KEY).(*form.Form)
 
-	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
-		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
-		MessageID:  update.Message.ID,
-	})
-
-	if err != nil {
-		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
-		return
-	}
+	msgID, _ := strconv.ParseInt(form.FindField("receipt").Value, 0, 0)
+	order, err := user.BuyPackByCard(db, &pack, int(msgID))
 
 	var txtMsg string
-	var order models.Order
-
-	if err := user.FirstSentOrder(db, &order); err != nil {
-		txtMsg = "خطایی پیش آمده"
-	}
-
-	receipt, err := order.AddReceiptByMsg(db, msg)
 	if err != nil {
 		txtMsg = "خطایی پیش آمده"
 	} else {
-		txtMsg = fmt.Sprintf("درخواست شما با موفقیت ثبت شد. کد رسید: %d", receipt.ID)
+		txtMsg = fmt.Sprintf("درخواست شما با موفقیت ثبت شد. کد رسید: %d", order.GetReceipt(db).ID)
 	}
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   txtMsg,
-	})
-
-	b.UnregisterHandler(order.HandlerID)
-
-	ShowMainDialog(ctx, b, update)
-}
-
-func onCancelbuy(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	db := database.GetDB()
-	user := ctx.Value(auth.UserKey).(models.User)
-
-	txtMsg := "خرید شما با موفقیت لغو شد"
-	var order models.Order
-
-	if err := user.FirstSentOrder(db, &order); err != nil {
-		txtMsg = "خطایی پیش آمده"
-	}
-
-	if err := order.CancelOrder(db); err != nil {
-		txtMsg = "خطایی پیش آمده"
-	}
-
-	b.UnregisterHandler(order.HandlerID)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
@@ -363,11 +401,6 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	})
 	ShowAdminDialog(ctx, b, update, form.ChatID)
 
-}
-func passOrder(next func(ctx context.Context, bot *bot.Bot, update *tmodels.Update, order *models.Order), order *models.Order) bot.HandlerFunc {
-	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
-		next(ctx, bot, update, order)
-	}
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
