@@ -22,7 +22,7 @@ func ChargeOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	chargeType := m.ChargeType(update.CallbackQuery.Data)
 	btns := createChargeOrderBtns(db, chargeType)
-	bp := buttonpage.CreateButtonPage("درخواست شارژ مورد نظر را برای بررسی انتخاب کنید:", btns, 5, true)
+	bp := buttonpage.CreateButtonPage(bot.EscapeMarkdown("درخواست شارژ مورد نظر را برای بررسی انتخاب کنید:"), btns, 5, true)
 	bp.Show(ctx, b, chatID)
 }
 

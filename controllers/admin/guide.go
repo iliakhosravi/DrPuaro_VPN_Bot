@@ -30,7 +30,7 @@ func RemoveGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 			CallbackData:    guideID,
 		})
 	}
-	buttonPage := bp.CreateButtonPage("کدام دکمه را می خواهید حذف کنید؟", buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام دکمه را می خواهید حذف کنید؟"), buttons, 5, true)
 	buttonPage.Show(ctx, b, chatID)
 }
 

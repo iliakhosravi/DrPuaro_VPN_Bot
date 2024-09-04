@@ -408,8 +408,9 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 		})
 		inBtns := createInboundsBtns(passPack(onPackInboundSubmit, pack))
 		if len(inBtns) > 0 {
-			inboundsPage := bp.CreateButtonPage("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است.", inBtns, 5, true)
-			inboundsPage.Show(ctx, b, form.ChatID)
+			inboundsPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است."), inBtns, 5, true)
+			_, err := inboundsPage.Show(ctx, b, form.ChatID)
+			fmt.Println("Error, unable to show inbounds buttonpage: ", err)
 		} else {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: form.ChatID,

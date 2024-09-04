@@ -22,7 +22,7 @@ func ActiveOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update
 
 	buttons := createOrderButtons(orders)
 
-	buttonPage := bp.CreateButtonPage("لیست بسته های فعال", buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("لیست بسته های فعال"), buttons, 5, true)
 	buttonPage.Show(ctx, b, chatID)
 }
 
@@ -35,7 +35,7 @@ func DepletedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 
 	buttons := createOrderButtons(orders)
 
-	buttonPage := bp.CreateButtonPage("لیست بسته های تمام شده", buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("لیست بسته های تمام شده"), buttons, 5, true)
 	buttonPage.Show(ctx, b, chatID)
 }
 
@@ -48,7 +48,7 @@ func DismissedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upd
 
 	buttons := createOrderButtons(orders)
 
-	buttonPage := bp.CreateButtonPage("لیست بسته های رد شده", buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("لیست بسته های رد شده"), buttons, 5, true)
 	buttonPage.Show(ctx, b, chatID)
 }
 
@@ -61,7 +61,7 @@ func PendingOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 
 	buttons := createOrderButtons(orders)
 
-	buttonPage := bp.CreateButtonPage("لیست بسته های در انتظار تایید", buttons, 5, true)
+	buttonPage := bp.CreateButtonPage(bot.EscapeMarkdown("لیست بسته های در انتظار تایید"), buttons, 5, true)
 	buttonPage.Show(ctx, b, chatID)
 }
 
