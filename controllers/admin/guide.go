@@ -6,9 +6,12 @@ import (
 	"os"
 	"strconv"
 
+	comp "techybat.org/go-vpn/components"
+
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
+	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
@@ -53,13 +56,20 @@ func onRemoveGuide(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		ChatID: chatID,
 		Text:   txtMsg,
 	})
+	comp.BuildMainKeyboard(b)
 }
 
 func AddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
-
+	db := database.GetDB()
 	fields := []form.Field{
+		{
+			Name:        "inline-kb",
+			MessageText: "می خواهید به کدام کیبورد اضافه شود؟",
+			Type:        form.ButtonField,
+			Keyboard:    createInlineKB(db),
+		},
 		{
 			Name:        "title",
 			Type:        form.TextField,
@@ -96,9 +106,11 @@ func AddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 func onSubmitAddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	form := ctx.Value(form.FORM_KEY).(*form.Form)
 	guideType := m.GuideType(form.FindField("type").Value)
+	kbID, _ := strconv.ParseUint(form.FindField("inline-kb").Value, 0, 0)
 	guide := &m.Guide{
-		Title: form.FindField("title").Value,
-		Type:  guideType,
+		Title:            form.FindField("title").Value,
+		Type:             guideType,
+		InlineKeyboardID: uint(kbID),
 	}
 
 	guideValue := form.FindField("value").Value
@@ -121,6 +133,7 @@ func onSubmitAddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Up
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
+	comp.BuildMainKeyboard(b)
 }
 
 func onInputValue(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
@@ -153,4 +166,21 @@ func onInputValue(ctx context.Context, b *bot.Bot, update *tmodels.Update, form 
 
 func onCancelAddGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
+}
+
+func createInlineKB(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+	var iKb []m.InlineKeyboard
+	db.Find(&iKb)
+
+	kb := [][]tmodels.InlineKeyboardButton{}
+	for _, myKB := range iKb {
+		row := []tmodels.InlineKeyboardButton{
+			{
+				Text:         myKB.Name,
+				CallbackData: fmt.Sprintf("%d", myKB.ID),
+			},
+		}
+		kb = append(kb, row)
+	}
+	return kb
 }

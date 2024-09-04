@@ -15,10 +15,12 @@ const (
 
 type Guide struct {
 	BaseModel
-	Title    string    `json:"title"`
-	Type     GuideType `json:"type"`
-	FwdMsgID int       `json:"forward_message_id"`
-	Link     string    `json:"link"`
+	Title            string         `json:"title"`
+	Type             GuideType      `json:"type"`
+	FwdMsgID         int            `json:"forward_message_id"`
+	Link             string         `json:"link"`
+	InlineKeyboardID uint           `json:"inline_keyboard_id"`
+	InlineKeyboard   InlineKeyboard `json:"inline_keyboard"`
 }
 
 func (guide *Guide) Migrate(db *gorm.DB) {

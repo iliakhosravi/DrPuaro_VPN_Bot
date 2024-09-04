@@ -6,11 +6,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"techybat.org/go-vpn/controllers/admin_menu"
+	main2 "techybat.org/go-vpn/controllers/main_controller"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
-	"techybat.org/go-vpn/controllers"
 	configCrons "techybat.org/go-vpn/crons/config"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
@@ -32,8 +33,8 @@ func main() {
 
 	opts := []bot.Option{
 		bot.WithMiddlewares(auth.UserMiddleware),
-		bot.WithDefaultHandler(controllers.MainController),
-		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(controllers.AdminController)),
+		bot.WithDefaultHandler(main2.MainController),
+		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(admin_menu.AdminController)),
 	}
 
 	b, err := bot.New(telegramBotToken, opts...)

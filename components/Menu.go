@@ -1,4 +1,4 @@
-package controllers
+package components
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"gorm.io/gorm"
+	"techybat.org/go-vpn/controllers/buy_controller"
 	customerController "techybat.org/go-vpn/controllers/customer"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
@@ -22,48 +23,15 @@ var (
 	mainKBOnce sync.Once
 )
 
-func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	createMainKeyboard(b)
-	if update.CallbackQuery != nil {
-		return
-	}
-	ShowMainDialog(ctx, b, update)
-}
+func BuildMainKeyboard(b *bot.Bot) {
+	mainKB = reply.New(b).
+		Button("🛍خرید بسته", b, bot.MatchTypeExact, handleBuy).
+		Button("👨‍💻بسته های خریداری شده", b, bot.MatchTypeExact, handleBuyList).
+		Row().
+		Button("💰کیف پول", b, bot.MatchTypeExact, customerController.BalanceHandler).
+		Button("💳 شارژ اکانت", b, bot.MatchTypeExact, buy_controller.ChargeHandler)
 
-func createMainKeyboard(b *bot.Bot) {
-	mainKBOnce.Do(func() {
-		mainKB = reply.New(b).
-			Button("خرید بسته", b, bot.MatchTypeExact, handleBuy).
-			Button("بسته های خریداری شده", b, bot.MatchTypeExact, handleBuyList).
-			Row().
-			Button("کیف پول", b, bot.MatchTypeExact, BalanceHandler).
-			Button("شارژ اکانت", b, bot.MatchTypeExact, ChargeHandler).
-			Row().
-			Button("راهنما", b, bot.MatchTypeExact, handleGuide)
-	})
-}
-
-func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	if os.Getenv("MAIN_KB_INLINE") != "true" {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-
-			ChatID:      update.Message.Chat.ID,
-			Text:        fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
-			ReplyMarkup: mainKB,
-		})
-	} else {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-
-			ChatID: update.Message.Chat.ID,
-			Text:   "خوش آمدید",
-			ReplyMarkup: tmodels.ReplyKeyboardRemove{
-				RemoveKeyboard: true,
-				Selective:      false,
-			},
-		})
-		p := dialog.New(NewMainDialog(), dialog.Inline())
-		p.Show(ctx, b, update.Message.Chat.ID, "start")
-	}
+	addGuideBtnsToReply(b)
 }
 
 func handleBuy(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -76,97 +44,62 @@ func handleBuyList(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	p.Show(ctx, b, update.Message.Chat.ID, "orders")
 }
 
-func handleGuide(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+func GetMenuKeyboard(b *bot.Bot) *reply.ReplyKeyboard {
+	mainKBOnce.Do(func() {
+		BuildMainKeyboard(b)
+	})
+	return mainKB
+}
+
+func addGuideBtnsToReply(b *bot.Bot) {
+	db := database.GetDB()
+	var kbs []models.InlineKeyboard
+	db.Find(&kbs)
+	for i, kb := range kbs {
+		if i%2 == 0 {
+			mainKB.Row()
+		}
+
+		mainKB.Button(kb.Name, b, bot.MatchTypeExact, passKB(handleGuideKB, &kb))
+	}
+}
+
+func passKB(next func(ctx context.Context, b *bot.Bot, update *tmodels.Update, kb *models.InlineKeyboard), kb *models.InlineKeyboard) bot.HandlerFunc {
+	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
+		next(ctx, bot, update, kb)
+	}
+}
+
+func handleGuideKB(ctx context.Context, b *bot.Bot, update *tmodels.Update, kb *models.InlineKeyboard) {
+	db := database.GetDB()
+	guides := kb.Guides(db)
+
 	guideNodes := []dialog.Node{
 		{
 			ID:       "guide",
-			Text:     "در چه موضوعی نیاز به راهنمایی دارید؟",
-			Keyboard: CreateGuideKeyboard(database.GetDB()),
+			Text:     bot.EscapeMarkdown(kb.Text),
+			Keyboard: BuildGuideInlineKeyboard(guides),
 		},
 	}
 	p := dialog.New(guideNodes, dialog.Inline())
 	p.Show(ctx, b, update.Message.Chat.ID, "guide")
 }
 
-func NewMainNodes() []dialog.Node {
-	db := database.GetDB()
-	dialogNodes := []dialog.Node{
-		{
-			ID:       "start",
-			Text:     fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
-			Keyboard: nil,
-		},
-
-		{
-			ID:   "orders",
-			Text: "انتخاب کنید",
-			Keyboard: [][]dialog.Button{
-				{
-					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
-					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
-				},
-				{
-					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: customerController.PendingOrdersHandler},
-					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: customerController.DismissedOrdersHandler},
-				},
-				{
-					{Text: "بازگشت", NodeID: "start"},
-				},
-			},
-		},
-	}
-	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, BuyController)...)
-
-	return dialogNodes
+func ForwardGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	msgID, _ := strconv.Atoi(update.CallbackQuery.Data)
+	b.CopyMessage(ctx, &bot.CopyMessageParams{
+		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
+		MessageID:  msgID,
+	})
+	// b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+	// 	FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+	// 	ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
+	// 	MessageID:  msgID,
+	// })
 }
 
-func NewMainDialog() []dialog.Node {
-	db := database.GetDB()
-	dialogNodes := []dialog.Node{
-		{
-			ID:   "start",
-			Text: fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
-			Keyboard: [][]dialog.Button{
-				{
-					{Text: "خرید بسته", NodeID: "categories"},
-					{Text: "بسته های خریداری شده", NodeID: "orders"},
-				},
-				{
-					{ID: "balance", Text: "کیف پول", CallbackHandler: BalanceHandler},
-					{ID: "charge-account", Text: "شارژ اکانت", CallbackHandler: ChargeHandler},
-				},
-			},
-		},
-
-		{
-			ID:   "orders",
-			Text: "انتخاب کنید",
-			Keyboard: [][]dialog.Button{
-				{
-					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
-					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
-				},
-				{
-					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: customerController.PendingOrdersHandler},
-					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: customerController.DismissedOrdersHandler},
-				},
-				{
-					{Text: "بازگشت", NodeID: "start"},
-				},
-			},
-		},
-	}
-
-	dialogNodes[0].Keyboard = append(dialogNodes[0].Keyboard, CreateGuideKeyboard(db)...)
-	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, BuyController)...)
-
-	return dialogNodes
-}
-
-func CreateGuideKeyboard(db *gorm.DB) [][]dialog.Button {
-	var guides []models.Guide
-	db.Find(&guides)
-
+func BuildGuideInlineKeyboard(guides []models.Guide) [][]dialog.Button {
 	keyboard := [][]dialog.Button{}
 	for i, guide := range guides {
 		if i%2 == 0 {
@@ -189,13 +122,63 @@ func CreateGuideKeyboard(db *gorm.DB) [][]dialog.Button {
 	return keyboard
 }
 
-func ForwardGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	msgID, _ := strconv.Atoi(update.CallbackQuery.Data)
-	b.CopyMessage(ctx, &bot.CopyMessageParams{
-		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
-		ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
-		MessageID:  msgID,
-	})
+func NewMainNodes() []dialog.Node {
+	db := database.GetDB()
+	dialogNodes := []dialog.Node{
+		{
+			ID:       "start",
+			Text:     fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			Keyboard: nil,
+		},
+
+		{
+			ID:   "how-connect",
+			Text: os.Getenv("HOW_CONNECT_TEXT"),
+			Keyboard: [][]dialog.Button{
+				{
+					{
+						Text: os.Getenv("HOW_IPHONE_TEXT"),
+						URL:  os.Getenv("HOW_IPHONE_LINK"),
+					},
+					{
+						Text: os.Getenv("HOW_ANDROID_TEXT"),
+						URL:  os.Getenv("HOW_ANDROID_LINK"),
+					},
+				},
+				{
+					{
+						Text: os.Getenv("HOW_UNIX_TEXT"),
+						URL:  os.Getenv("HOW_UNIX_LINK"),
+					},
+					{
+						Text: os.Getenv("HOW_WIN_TEXT"),
+						URL:  os.Getenv("HOW_WIN_LINK"),
+					},
+				},
+			},
+		},
+
+		{
+			ID:   "orders",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
+					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
+				},
+				{
+					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: customerController.PendingOrdersHandler},
+					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: customerController.DismissedOrdersHandler},
+				},
+				{
+					{Text: "بازگشت", NodeID: "start"},
+				},
+			},
+		},
+	}
+	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, buy_controller.BuyController)...)
+
+	return dialogNodes
 }
 
 func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node {

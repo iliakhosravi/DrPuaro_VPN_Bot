@@ -69,6 +69,7 @@ func MigrateAll(db *gorm.DB) {
 		&models.Guide{},
 		&models.ChargeOrder{},
 		&models.ChargeReceipt{},
+		&models.InlineKeyboard{},
 	}
 
 	for _, migration := range migrations {

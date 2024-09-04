@@ -1,4 +1,4 @@
-package controllers
+package buy_controller
 
 import (
 	"context"
@@ -166,8 +166,6 @@ func onCancelRecipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		ChatID: update.Message.Chat.ID,
 		Text:   "خرید شما با موفقیت لغو شد",
 	})
-
-	ShowMainDialog(ctx, b, update)
 }
 func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
@@ -272,8 +270,6 @@ func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, 
 		ChatID: update.Message.Chat.ID,
 		Text:   txtMsg,
 	})
-
-	ShowMainDialog(ctx, b, update)
 }
 
 func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -399,16 +395,8 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
-	ShowAdminDialog(ctx, b, update, form.ChatID)
 
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	var chatID int64
-	if update.CallbackQuery != nil {
-		chatID = update.CallbackQuery.Message.Message.Chat.ID
-	} else {
-		chatID = update.Message.Chat.ID
-	}
-	ShowAdminDialog(ctx, b, update, chatID)
 }

@@ -1,4 +1,4 @@
-package controllers
+package category_controller
 
 import (
 	"context"
@@ -61,18 +61,9 @@ func catSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		Text:   txtMsg,
 	})
 
-	ShowAdminDialog(ctx, b, update, form.ChatID)
 }
 
-func onCancelCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	var chatID int64
-	if update.CallbackQuery != nil {
-		chatID = update.CallbackQuery.Message.Message.Chat.ID
-	} else {
-		chatID = update.Message.Chat.ID
-	}
-	ShowAdminDialog(ctx, b, update, chatID)
-}
+func onCancelCat(ctx context.Context, b *bot.Bot, update *tmodels.Update) {}
 
 func EditCatController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
@@ -277,8 +268,6 @@ func onEditCatSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, ca
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
-
-	ShowAdminDialog(ctx, b, update, form.ChatID)
 }
 
 func passCategory(next CatEditHandler, cat models.Category) bot.HandlerFunc {

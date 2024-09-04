@@ -1,4 +1,4 @@
-package controllers
+package buy_controller
 
 import (
 	"context"
@@ -56,7 +56,7 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	}
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
-	form := form.CreateForm(cancelBtnText, fields, chatID, userID, packSubmitController, onCancelPack, nil)
+	form := form.CreateForm("انصراف", fields, chatID, userID, packSubmitController, onCancelPack, nil)
 
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
@@ -113,8 +113,6 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
-
-	ShowAdminDialog(ctx, b, update, form.ChatID)
 }
 
 func onPackInboundSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
@@ -132,18 +130,9 @@ func onPackInboundSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		ChatID: chatID,
 		Text:   txtMsg,
 	})
-
-	ShowAdminDialog(ctx, b, update, chatID)
 }
 
 func onCancelPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	var chatID int64
-	if update.CallbackQuery != nil {
-		chatID = update.CallbackQuery.Message.Message.Chat.ID
-	} else {
-		chatID = update.Message.Chat.ID
-	}
-	ShowAdminDialog(ctx, b, update, chatID)
 }
 
 func EditPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -430,8 +419,6 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 		ChatID: form.ChatID,
 		Text:   txtMsg,
 	})
-
-	ShowAdminDialog(ctx, b, update, form.ChatID)
 }
 
 func passPack(next PackEditHandler, pack models.Pack) bot.HandlerFunc {

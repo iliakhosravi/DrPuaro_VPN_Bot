@@ -1,7 +1,10 @@
-package controllers
+package admin_menu
 
 import (
 	"context"
+
+	"techybat.org/go-vpn/controllers/buy_controller"
+	"techybat.org/go-vpn/controllers/category_controller"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
@@ -45,7 +48,7 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{Text: "مدیریت دکمه های راهنما", NodeID: "help-btns"},
 				},
 				{
-					{ID: "verify-buy-requests", Text: "بررسی درخواست های خرید", CallbackHandler: auth.AdminMiddleware(VerifyBuyController)},
+					{ID: "verify-buy-requests", Text: "بررسی درخواست های خرید", CallbackHandler: auth.AdminMiddleware(buy_controller.VerifyBuyController)},
 					{Text: "لیست سفارشات", NodeID: "orders-list"},
 				},
 				{
@@ -95,12 +98,12 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 			Text: "چه بخشی را میخواهید تغییر دهید؟",
 			Keyboard: [][]dialog.Button{
 				{
-					{ID: "add-cat", Text: "افزودن دسته بندی", CallbackHandler: auth.AdminMiddleware(AddCatController)},
-					{ID: "edit-cat", Text: "ویرایش دسته بندی", CallbackHandler: auth.AdminMiddleware(EditCatController)},
+					{ID: "add-cat", Text: "افزودن دسته بندی", CallbackHandler: auth.AdminMiddleware(category_controller.AddCatController)},
+					{ID: "edit-cat", Text: "ویرایش دسته بندی", CallbackHandler: auth.AdminMiddleware(category_controller.EditCatController)},
 				},
 				{
-					{ID: "add-pack", Text: "افزودن بسته", CallbackHandler: auth.AdminMiddleware(AddPackController)},
-					{ID: "edit-pack", Text: "ویرایش بسته", CallbackHandler: auth.AdminMiddleware(EditPackController)},
+					{ID: "add-pack", Text: "افزودن بسته", CallbackHandler: auth.AdminMiddleware(buy_controller.AddPackController)},
+					{ID: "edit-pack", Text: "ویرایش بسته", CallbackHandler: auth.AdminMiddleware(buy_controller.EditPackController)},
 				},
 				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
@@ -128,6 +131,18 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 			ID:   "help-btns",
 			Text: "انتخاب کنید",
 			Keyboard: [][]dialog.Button{
+				{
+					{
+						ID:              "add-inline-kb",
+						Text:            "افزودن کیبورد شیشه ای",
+						CallbackHandler: auth.AdminMiddleware(adminController.AddInlineKBHandler),
+					},
+					{
+						ID:              "remove-inline-kb",
+						Text:            "حذف کیبورد شیشه ای",
+						CallbackHandler: auth.AdminMiddleware(adminController.RemoveInlineKBHandler),
+					},
+				},
 				{
 					{
 						ID:              "add-guide",
