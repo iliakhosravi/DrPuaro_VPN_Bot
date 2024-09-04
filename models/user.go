@@ -2,6 +2,8 @@ package models
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
 	tmodels "github.com/go-telegram/bot/models"
 	"gorm.io/gorm"
@@ -35,6 +37,7 @@ func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) e
 	user.LastName = tuser.LastName
 	user.Username = tuser.Username
 	user.TelID = tuser.ID
+	user.Charge, _ = strconv.ParseUint(os.Getenv("WALLET_INIT_BALANCE"), 0, 0)
 
 	if result := db.Save(user); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to create user: %v", result.Error)
