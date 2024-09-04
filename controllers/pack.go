@@ -89,10 +89,17 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 			ChatID: form.ChatID,
 			Text:   "درحال دریافت inbound ها از پنل...",
 		})
+
 		inBtns := createInboundsBtns(passPack(onPackInboundSubmit, pack))
-		inboundsPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است."), inBtns, 5, true)
-		inboundsPage.Show(ctx, b, form.ChatID)
-		fmt.Println("AFTER SHOW BUTTON PAGE")
+		if len(inBtns) > 0 {
+			inboundsPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است."), inBtns, 5, true)
+			inboundsPage.Show(ctx, b, form.ChatID)
+		} else {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: form.ChatID,
+				Text:   "خطا! هیچگونه inbound ای در پنل شما برای انتخاب ثبت نشده است!",
+			})
+		}
 		return
 	}
 
@@ -286,7 +293,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
 	db := database.GetDB()
-	packID, _ := strconv.ParseUint(update.CallbackQuery.Data, 10, 0)
+	packID := update.CallbackQuery.Data
 	var pack models.Pack
 	db.Preload("Category").Order("created_at desc").Find(&pack, packID)
 
@@ -328,9 +335,9 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			MessageText: "نوع بسته چه باشد؟",
 			Type:        form.ButtonField,
 			Keyboard:    typeKeyboard,
-			Value:       string(pack.Type),
-			IsSkippable: true,
 			Validator:   models.PackValidator("type"),
+			IsSkippable: true,
+			Value:       string(pack.Type),
 		},
 	}
 	form := form.CreateForm("انصراف", fields, chatID, update.CallbackQuery.From.ID, passPack(onEditPackSubmit, pack), onCancelPack, nil)
@@ -387,6 +394,7 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	pack.Traffic = traffic
 	pack.Period = period
 	pack.Price = price
+	pack.Type = models.PackType(form.FindField("type").Value)
 
 	if err == nil {
 		pack.CategoryID = uint(categoryID)
@@ -394,9 +402,20 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	}
 
 	if pack.Type == models.SanaeiPack {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "درحال دریافت inbound ها از پنل...",
+		})
 		inBtns := createInboundsBtns(passPack(onPackInboundSubmit, pack))
-		inboundsPage := bp.CreateButtonPage("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است.", inBtns, 5, true)
-		inboundsPage.Show(ctx, b, form.ChatID)
+		if len(inBtns) > 0 {
+			inboundsPage := bp.CreateButtonPage("کدام یک از inbound های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل سنایی شما استخراج شده است.", inBtns, 5, true)
+			inboundsPage.Show(ctx, b, form.ChatID)
+		} else {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: form.ChatID,
+				Text:   "خطا! هیچگونه inbound ای در پنل شما برای انتخاب ثبت نشده است!",
+			})
+		}
 		return
 	}
 
@@ -424,7 +443,6 @@ func createInboundsBtns(handler bot.HandlerFunc) []dialog.Button {
 	btns := []dialog.Button{}
 	p := panel.GetPanel()
 	inbounds, _ := p.GetInbounds()
-	fmt.Println("THIS IS AFTER GET INBOUNDS: ", inbounds)
 	for _, inbound := range inbounds {
 		btn := dialog.Button{
 			ID:              fmt.Sprint(inbound.ID),
@@ -435,6 +453,5 @@ func createInboundsBtns(handler bot.HandlerFunc) []dialog.Button {
 
 		btns = append(btns, btn)
 	}
-	fmt.Println("\n\nTHESE ARE INBOUND_BTNS: ", btns)
 	return btns
 }
