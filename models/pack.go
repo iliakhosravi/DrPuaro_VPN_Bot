@@ -48,7 +48,7 @@ func (pack Pack) Name() string {
 }
 
 func (pack Pack) String() string {
-	return fmt.Sprintf("حجم %d گیگابایت | %d روزه | %d تومان", pack.Traffic, pack.Period, pack.Price)
+	return fmt.Sprintf("حجم %d گیگابایت | %s | %d تومان", pack.Traffic, StringPeriod(pack.Period), pack.Price)
 }
 
 func (pack Pack) ConfigDesc() string {
@@ -115,4 +115,28 @@ func GetPackPeriods(packs []Pack) map[int][]Pack {
 	}
 
 	return periodsMap
+}
+
+func StringPeriod(period int) string {
+	result := ""
+	years := period / 365
+	months := period / 30
+	days := period % 30
+	if years != 0 {
+		result += fmt.Sprintf("%d سال", years)
+		if months+days != 0 {
+			result += " و "
+		}
+	}
+	if months != 0 {
+		result += fmt.Sprintf("%d ماه", months)
+		if days != 0 {
+			result += " و "
+		}
+	}
+	if days != 0 {
+		result += fmt.Sprintf("%d روز", days)
+	}
+	result += "ه"
+	return result
 }

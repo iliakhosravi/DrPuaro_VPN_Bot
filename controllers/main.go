@@ -154,9 +154,10 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 
 		for period := range packPeriods {
 			packNodeID := fmt.Sprintf("cat_%d_%d", category.ID, period)
+
 			row := []dialog.Button{
 				{
-					Text:   fmt.Sprintf("%d روزه", period),
+					Text:   models.StringPeriod(period),
 					NodeID: packNodeID,
 				},
 			}
