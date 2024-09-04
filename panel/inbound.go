@@ -70,7 +70,6 @@ func (panel *Panel) GetInbounds() ([]Inbound, error) {
 		Object []Inbound `json:"obj"`
 	}
 	var insRes inboundsResponse
-	fmt.Println("IS PANEL NIL? PANEL: ", panel)
 	_, err := panel.client.R().
 		SetResult(&insRes).
 		Get(INBOUNDS_PATH)
