@@ -39,7 +39,7 @@ func ChargeOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 		MessageID:  order.Receipt(db).MessageID,
 	})
 
-	txtMsg := fmt.Sprintf("اطلاعات درخواست شارژ\n%s\n\nکاربر درخواست کننده:\n%s", order.FullStr(), order.User.String())
+	txtMsg := bot.EscapeMarkdown(fmt.Sprintf("اطلاعات درخواست شارژ\n%s\n\nکاربر درخواست کننده:\n%s", order.FullStr(), order.User.String()))
 
 	nodes := []dialog.Node{
 		{
@@ -79,7 +79,8 @@ func ChargeOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 	}
 
 	dialog := dialog.New(nodes, dialog.Inline())
-	dialog.Show(ctx, b, chatID, "charge-desc")
+	_, err := dialog.Show(ctx, b, chatID, "charge-desc")
+	fmt.Println("Error: unable to show charge-desc dialog. err: ", err)
 }
 
 func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
