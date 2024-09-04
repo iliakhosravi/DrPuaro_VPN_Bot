@@ -93,7 +93,7 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	if err != nil {
 		txtMsg = "خطایی پیش آمده"
 	} else {
-		txtMsg = fmt.Sprintf("سفارش شما ایجاد و تایید شد.\nاطلاعات سفارش:%s", order.FullStr(db))
+		txtMsg = fmt.Sprintf("سفارش شما ایجاد و تایید شد.\nاطلاعات سفارش:%s", order.UserStr(db))
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
@@ -396,7 +396,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		}
 	}
 
-	carryMsg := fmt.Sprintf("سفارش شما بررسی شد.\nبسته انتخابی:%s\nشماره سفارش: %d\nنتیجه:%s\nتوضیحات ادمین:%s", order.Pack.String(), orderID, orderResult, order.AdminNote)
+	carryMsg := fmt.Sprintf("سفارش شما بررسی شد.\nنتیجه:%s\n%s", orderResult, order.UserStr(db))
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    order.User.TelID,
