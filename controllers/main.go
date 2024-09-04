@@ -107,7 +107,7 @@ func CreateGuideKeyboard(db *gorm.DB) [][]dialog.Button {
 
 func ForwardGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	msgID, _ := strconv.Atoi(update.CallbackQuery.Data)
-	b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+	b.CopyMessage(ctx, &bot.CopyMessageParams{
 		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
 		ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
 		MessageID:  msgID,
