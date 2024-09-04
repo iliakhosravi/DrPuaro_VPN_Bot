@@ -3,6 +3,7 @@ package admin_controller
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
@@ -55,10 +56,13 @@ func onCancelInlineKB(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 }
 
 func RemoveInlineKBHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	chatID := update.CallbackQuery.From.ID
 	btns := createInlineKBBtns(database.GetDB())
 	bpage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از کیبورد های زیر را می خواهید حذف کنید؟"), btns, 5, true)
-	bpage.Show(ctx, b, chatID)
+	_, err := bpage.Show(ctx, b, chatID)
+	if err != nil {
+		fmt.Println("Error, unable to show inline keyboards to remove. err: ", err)
+	}
 }
 
 func onRemoveInlineKB(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -87,7 +91,7 @@ func createInlineKBBtns(db *gorm.DB) []dialog.Button {
 	btns := []dialog.Button{}
 	for _, kb := range kbs {
 		btns = append(btns, dialog.Button{
-			ID:              kb.Name,
+			ID:              fmt.Sprintf("%d", kb.ID),
 			Text:            kb.Name,
 			CallbackHandler: onRemoveInlineKB,
 			CallbackData:    fmt.Sprintf("%d", kb.ID),
