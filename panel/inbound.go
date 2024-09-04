@@ -17,10 +17,10 @@ type Inbound struct {
 	Remark            string          `json:"remark"`
 	Enable            bool            `json:"enable"`
 	Port              int             `json:"port"`
-	strSettings       string          `json:"-"`
-	strStreamSettings string          `json:"-"`
-	Settings          InboundSettings `json:"settings"`
-	StreamSettings    StreamSettings  `json:"streamSettings"`
+	strSettings       string          `json:"settings"`
+	strStreamSettings string          `json:"streamSettings"`
+	Settings          InboundSettings `json:"-"`
+	StreamSettings    StreamSettings  `json:"-"`
 }
 
 type InboundClient struct {
@@ -70,22 +70,33 @@ func (panel *Panel) GetInbounds() ([]Inbound, error) {
 		Object []Inbound `json:"obj"`
 	}
 	var insRes inboundsResponse
-	_, err := panel.client.R().
+	resp, err := panel.client.R().
+		EnableTrace().
 		SetResult(&insRes).
 		Get(INBOUNDS_PATH)
+
+	curlCmdExecuted := resp.Request.GenerateCurlCommand()
+	fmt.Println("Curl Command:\n  ", curlCmdExecuted+"\n")
+
+	fmt.Println("Err: ", err)
 	if err != nil {
 		return []Inbound{}, fmt.Errorf("error: getting inbounds failed.\nerr:%s", err)
 	}
 
+	fmt.Println("Message: ", insRes.Message)
 	if !insRes.Success {
 		return []Inbound{}, fmt.Errorf("error: getting inbounds failed. response msg:%s", insRes.Message)
 	}
 
 	inbounds := insRes.Object
+	fmt.Println("inbounds: ", inbounds)
+
 	for _, inbound := range inbounds {
 		json.Unmarshal([]byte(inbound.strSettings), &inbound.Settings)
 		json.Unmarshal([]byte(inbound.strStreamSettings), &inbound.StreamSettings)
 	}
+
+	fmt.Println("\n\n\n\n\n\nafter marshal inbounds: ", inbounds)
 
 	return inbounds, nil
 }
