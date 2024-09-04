@@ -5,35 +5,119 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/keyboard/reply"
 	"gorm.io/gorm"
 	customerController "techybat.org/go-vpn/controllers/customer"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 )
 
+var (
+	mainKB     *reply.ReplyKeyboard
+	mainKBOnce sync.Once
+)
+
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	createMainKeyboard(b)
 	if update.CallbackQuery != nil {
 		return
 	}
 	ShowMainDialog(ctx, b, update)
 }
 
-func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	b.SendMessage(ctx, &bot.SendMessageParams{
-
-		ChatID: update.Message.Chat.ID,
-		Text:   "خوش آمدید",
-		ReplyMarkup: tmodels.ReplyKeyboardRemove{
-			RemoveKeyboard: true,
-			Selective:      false,
-		},
+func createMainKeyboard(b *bot.Bot) {
+	mainKBOnce.Do(func() {
+		mainKB = reply.New(b).
+			Button("خرید بسته", b, bot.MatchTypeExact, handleBuy).
+			Button("بسته های خریداری شده", b, bot.MatchTypeExact, handleBuyList).
+			Row().
+			Button("کیف پول", b, bot.MatchTypeExact, BalanceHandler).
+			Button("شارژ اکانت", b, bot.MatchTypeExact, ChargeHandler).
+			Row().
+			Button("راهنما", b, bot.MatchTypeExact, handleGuide)
 	})
-	p := dialog.New(NewMainDialog(), dialog.Inline())
-	p.Show(ctx, b, update.Message.Chat.ID, "start")
+}
+
+func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	if os.Getenv("MAIN_KB_INLINE") != "true" {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+
+			ChatID:      update.Message.Chat.ID,
+			Text:        fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			ReplyMarkup: mainKB,
+		})
+	} else {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+
+			ChatID: update.Message.Chat.ID,
+			Text:   "خوش آمدید",
+			ReplyMarkup: tmodels.ReplyKeyboardRemove{
+				RemoveKeyboard: true,
+				Selective:      false,
+			},
+		})
+		p := dialog.New(NewMainDialog(), dialog.Inline())
+		p.Show(ctx, b, update.Message.Chat.ID, "start")
+	}
+}
+
+func handleBuy(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	p := dialog.New(NewMainNodes(), dialog.Inline())
+	p.Show(ctx, b, update.Message.Chat.ID, "categories")
+}
+
+func handleBuyList(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	p := dialog.New(NewMainNodes(), dialog.Inline())
+	p.Show(ctx, b, update.Message.Chat.ID, "orders")
+}
+
+func handleGuide(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	guideNodes := []dialog.Node{
+		{
+			ID:       "guide",
+			Text:     "در چه موضوعی نیاز به راهنمایی دارید؟",
+			Keyboard: CreateGuideKeyboard(database.GetDB()),
+		},
+	}
+	p := dialog.New(guideNodes, dialog.Inline())
+	p.Show(ctx, b, update.Message.Chat.ID, "guide")
+}
+
+func NewMainNodes() []dialog.Node {
+	db := database.GetDB()
+	dialogNodes := []dialog.Node{
+		{
+			ID:       "start",
+			Text:     fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			Keyboard: nil,
+		},
+
+		{
+			ID:   "orders",
+			Text: "انتخاب کنید",
+			Keyboard: [][]dialog.Button{
+				{
+					{ID: "active-orders", Text: "بسته های فعال", CallbackHandler: customerController.ActiveOrdersHandler},
+					{ID: "depleted-orders", Text: "بسته های تمام شده", CallbackHandler: customerController.DepletedOrdersHandler},
+				},
+				{
+					{ID: "pending-orders", Text: "بسته های درانتظار تایید", CallbackHandler: customerController.PendingOrdersHandler},
+					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: customerController.DismissedOrdersHandler},
+				},
+				{
+					{Text: "بازگشت", NodeID: "start"},
+				},
+			},
+		},
+	}
+	dialogNodes = append(dialogNodes, CreateCatPackNodes(db, BuyController)...)
+
+	return dialogNodes
 }
 
 func NewMainDialog() []dialog.Node {
@@ -41,7 +125,7 @@ func NewMainDialog() []dialog.Node {
 	dialogNodes := []dialog.Node{
 		{
 			ID:   "start",
-			Text: "☄️ Ultra Fast VPN☄️\n",
+			Text: fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
 			Keyboard: [][]dialog.Button{
 				{
 					{Text: "خرید بسته", NodeID: "categories"},
