@@ -168,8 +168,8 @@ func onCancelRecipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	})
 }
 func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	chatID := update.CallbackQuery.Message.Message.Chat.ID
-	userID := update.CallbackQuery.From.ID
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
 	db := database.GetDB()
 	var card models.Card = models.GetActiveCard(db)
 	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله شارژ شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین به صورت خودکار اکانت شما شارژ خواهد شد."
@@ -219,7 +219,13 @@ func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		}
 
 		txtMsg += fmt.Sprintf("%d", receipt.ID)
-		return nil
+
+		_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+			Text:   fmt.Sprintf("#CO%d\n#CR%d", chargeOrder.ID, receipt.ID),
+		})
+
+		return err2
 	})
 
 	if err != nil {
@@ -258,12 +264,18 @@ func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, 
 
 	msgID, _ := strconv.ParseInt(form.FindField("receipt").Value, 0, 0)
 	order, err := user.BuyPackByCard(db, &pack, int(msgID))
+	receipt := order.GetReceipt(db)
+
+	_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		Text:   fmt.Sprintf("#O%d\n#R%d", order.ID, receipt.ID),
+	})
 
 	var txtMsg string
-	if err != nil {
+	if err != nil || err2 != nil {
 		txtMsg = "خطایی پیش آمده"
 	} else {
-		txtMsg = fmt.Sprintf("درخواست شما با موفقیت ثبت شد. کد رسید: %d", order.GetReceipt(db).ID)
+		txtMsg = fmt.Sprintf("درخواست شما با موفقیت ثبت شد.\nکد رسید: %d\nکد سفارش: %d", receipt.ID, order.ID)
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
