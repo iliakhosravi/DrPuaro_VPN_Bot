@@ -214,9 +214,9 @@ func editConfigHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	}
 	fields := []form.Field{
 		{
-			Name:        "sub_id",
-			MessageText: fmt.Sprintf("آیدی ساب خود را در قالب متن وارد نمایید.\nمقدار فعلی:%s", config.SubID),
-			Value:       config.SubID,
+			Name:        "custom_link",
+			MessageText: fmt.Sprintf("لطفا لینک کانفیگ را وارد نمایید. \nمقدار فعلی:%s", config.CustomLink),
+			Value:       config.CustomLink,
 			IsSkippable: true,
 		},
 		{
@@ -241,7 +241,7 @@ func onSubmitEditConfig(config *m.Config) bot.HandlerFunc {
 		db := database.GetDB()
 
 		strDate := form.FindField("start_date").Value
-		config.SubID = form.FindField("sub_id").Value
+		config.CustomLink = form.FindField("custom_link").Value
 		date, _ := time.Parse("2006-01-02", strDate)
 		config.StartDate = date
 
@@ -256,8 +256,8 @@ func onSubmitEditConfig(config *m.Config) bot.HandlerFunc {
 			Text:   txtMsg,
 		})
 
-		txtMsg = "یکی از کانفیگ های شما مرتبط با سفارشی با مشخصات زیر تغییر یافته است..\n\n"
-		txtMsg += config.Order.FullStr(db)
+		txtMsg = "یکی از کانفیگ های شما مرتبط با سفارشی با مشخصات زیر تغییر یافته است. برای دریافت اطلاعات بیشتر به لیست خرید های خود مراجعه کنید.\n\n"
+		txtMsg += config.Order.UserStr(db)
 
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: config.Order.User.TelID,
