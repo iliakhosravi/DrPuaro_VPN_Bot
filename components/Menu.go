@@ -132,33 +132,6 @@ func NewMainNodes() []dialog.Node {
 		},
 
 		{
-			ID:   "how-connect",
-			Text: os.Getenv("HOW_CONNECT_TEXT"),
-			Keyboard: [][]dialog.Button{
-				{
-					{
-						Text: os.Getenv("HOW_IPHONE_TEXT"),
-						URL:  os.Getenv("HOW_IPHONE_LINK"),
-					},
-					{
-						Text: os.Getenv("HOW_ANDROID_TEXT"),
-						URL:  os.Getenv("HOW_ANDROID_LINK"),
-					},
-				},
-				{
-					{
-						Text: os.Getenv("HOW_UNIX_TEXT"),
-						URL:  os.Getenv("HOW_UNIX_LINK"),
-					},
-					{
-						Text: os.Getenv("HOW_WIN_TEXT"),
-						URL:  os.Getenv("HOW_WIN_LINK"),
-					},
-				},
-			},
-		},
-
-		{
 			ID:   "orders",
 			Text: "انتخاب کنید",
 			Keyboard: [][]dialog.Button{
