@@ -1,8 +1,10 @@
 package customerController
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
@@ -18,7 +20,7 @@ func ActiveOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, m.ActiveOrder, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.ActiveOrder}, "Pack")
 
 	buttons := createOrderButtons(orders)
 
@@ -31,7 +33,7 @@ func DepletedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, m.DepletedOrder, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.DepletedOrder}, "Pack")
 
 	buttons := createOrderButtons(orders)
 
@@ -44,7 +46,7 @@ func DismissedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upd
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, m.DismissedOrder, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.DismissedOrder}, "Pack")
 
 	buttons := createOrderButtons(orders)
 
@@ -57,7 +59,7 @@ func PendingOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, m.PendingOrder, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.PendingOrder, m.PendLinkOrder}, "Pack")
 
 	buttons := createOrderButtons(orders)
 
@@ -66,6 +68,7 @@ func PendingOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 }
 
 func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 		ShowAlert:       false,
@@ -78,12 +81,23 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 	txtMsg := order.UserStr(db)
 	if _, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
+		ChatID:      chatID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
 		Text:        txtMsg,
 		ReplyMarkup: update.CallbackQuery.Message.Message.ReplyMarkup,
 	}); err != nil {
 		fmt.Println("Error for show order handler: ", err)
+	}
+
+	if order.Type == m.ActiveOrder {
+		shortLink, qrPath := order.Config(db).ShortLink(db)
+		fileContent, _ := os.ReadFile(qrPath)
+		b.SendPhoto(ctx, &bot.SendPhotoParams{
+			ChatID:    chatID,
+			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
+			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
+			ParseMode: tmodels.ParseModeMarkdown,
+		})
 	}
 }
 

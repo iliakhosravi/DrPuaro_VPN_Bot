@@ -21,6 +21,7 @@ const (
 	DepletedOrder  OrderType = "depleted"
 	CancelledOrder OrderType = "cancelled"
 	DismissedOrder OrderType = "dismissed"
+	PendLinkOrder  OrderType = "pend-link"
 )
 
 type Order struct {
@@ -73,7 +74,7 @@ func (order *Order) GetReceipt(db *gorm.DB) Receipt {
 	return receipt
 }
 
-func (order *Order) Verify(db *gorm.DB, adminNote string) error {
+func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 	var o Order
 	db.Preload(clause.Associations).Find(&o, order.ID)
 	order.Type = ActiveOrder
@@ -83,6 +84,7 @@ func (order *Order) Verify(db *gorm.DB, adminNote string) error {
 	db.Where(&Config{OrderID: order.ID}).First(&config)
 	config.OrderID = order.ID
 	config.StartDate = ptime.Now().Time()
+	config.CustomLink = customLink
 
 	if o.Pack.Type == SanaeiPack {
 		p := panel.GetPanel()
@@ -144,7 +146,7 @@ func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
 	case order.Type:
 		return nil
 	case ActiveOrder:
-		return order.Verify(db, order.AdminNote)
+		return order.Verify(db, order.AdminNote, order.Config(db).CustomLink)
 	case DepletedOrder:
 		return order.Deplete(db)
 	case DismissedOrder:
@@ -159,6 +161,8 @@ func (orderType OrderType) String() string {
 		return "در انتظار ارسال رسید توسط کاربر"
 	case PendingOrder:
 		return "در انتظار تایید"
+	case PendLinkOrder:
+		return "در انتظار ثبت لینک کانفیگ"
 	case ActiveOrder:
 		return "فعال"
 	case DepletedOrder:
@@ -186,10 +190,10 @@ func (order *Order) Config(db *gorm.DB) *Config {
 }
 
 func (o *Order) UserStr(db *gorm.DB) string {
-	return o.FullStr(db)
+	return o.NormalStr(db)
 }
 
-func (o *Order) FullStr(db *gorm.DB) string {
+func (o *Order) NormalStr(db *gorm.DB) string {
 	var txtMsg string
 	var order Order
 	db.Preload("Pack").Preload("Pack.Category").Find(&order, o.ID)
@@ -207,12 +211,20 @@ func (o *Order) FullStr(db *gorm.DB) string {
 		if err != nil {
 			remainedTrafficStr = "N/A"
 		}
-		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s GB\nتاریخ اتمام دوره:%s\nلینک بسته: %s\nلینک جیسون بسته: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr, config.Link(db), config.JSONLink(db))
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s GB\nتاریخ اتمام دوره:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr)
 	} else {
 		pt := ptime.New(order.CreatedAt)
 		showDate := pt.Format("d MMM y")
 		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, showDate, order.AdminNote)
 	}
 
+	return txtMsg
+}
+
+func (o *Order) FullStr(db *gorm.DB) string {
+	txtMsg := o.NormalStr(db)
+	if o.Type == ActiveOrder {
+		txtMsg += fmt.Sprintf("\nلینک ساب بسته: %s\nلینک ساب جیسون بسته: %s", o.Config(db).Link(db), o.Config(db).JSONLink(db))
+	}
 	return txtMsg
 }

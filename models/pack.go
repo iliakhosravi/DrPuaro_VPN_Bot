@@ -32,7 +32,7 @@ type Pack struct {
 	Category   Category   `json:"category"`
 	Status     PackStatus `json:"status" gorm:"default:undefined"`
 	InboundID  int        `json:"inbound_id" gorm:"default:-1"`
-	Type       PackType   `json:"type"`
+	Type       PackType   `json:"type" gorm:"default:custom"`
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {

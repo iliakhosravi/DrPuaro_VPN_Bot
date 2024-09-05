@@ -130,6 +130,12 @@ func onPackInboundSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		ChatID: chatID,
 		Text:   txtMsg,
 	})
+
+	b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:      chatID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		ReplyMarkup: nil,
+	})
 }
 
 func onCancelPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

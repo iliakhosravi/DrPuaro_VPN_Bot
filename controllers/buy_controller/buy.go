@@ -1,6 +1,7 @@
 package buy_controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -105,6 +106,20 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		ChatID:    chatID,
 		MessageID: update.CallbackQuery.Message.Message.ID,
 	})
+
+	if order.Type == models.ActiveOrder {
+		shortLink, qrPath := order.Config(db).ShortLink(db)
+		fileContent, _ := os.ReadFile(qrPath)
+		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
+			ChatID:    chatID,
+			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
+			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
+			ParseMode: tmodels.ParseModeMarkdown,
+		})
+		if err != nil {
+			fmt.Println("Unable to send config link and QR. err: ", err)
+		}
+	}
 }
 
 func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -287,7 +302,7 @@ func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, 
 func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	var orders []models.Order
-	db.Where(models.Order{Type: models.PendingOrder}).Preload("Pack").Find(&orders)
+	db.Where("type in (?)", []models.OrderType{models.PendingOrder, models.PendLinkOrder}).Preload("Pack").Find(&orders)
 
 	orderBtns := []dialog.Button{}
 
@@ -312,22 +327,27 @@ func onWatchOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var order models.Order
 	db.Where(orderID).Preload("User").Preload("Pack").Preload("Pack.Category").Find(&order)
 
+	var txtMsg string
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
-	_, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-		ChatID:     chatID,
-		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
-		MessageID:  order.GetReceipt(db).MessageID,
-	})
-
-	if err != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "خطایی پیش آمده یا درخواست ارسالی دردسترس نمی باشد",
+	if order.Type != models.PendLinkOrder {
+		_, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+			ChatID:     chatID,
+			FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+			MessageID:  order.GetReceipt(db).MessageID,
 		})
+
+		if err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "خطایی پیش آمده یا درخواست ارسالی دردسترس نمی باشد",
+			})
+		}
+		txtMsg = fmt.Sprintf("نحوه پرداخت: واریز\nشماره رسید:%d\n", order.GetReceipt(db).ID)
+	} else {
+		txtMsg = "نحوه پرداخت: کیف پول\n"
 	}
 
-	txtMsg := fmt.Sprintf("شماره رسید:%d\nنام کاربر:%s\nآیدی کاربر:%d\nنام کاربری:%s\n\nبسته درخواستی:%s\nگروه بسته درخواستی:%s\n",
-		order.GetReceipt(db).ID,
+	txtMsg += fmt.Sprintf("نام کاربر:%s\nآیدی کاربر:%d\nنام کاربری:%s\n\nبسته درخواستی:%s\nگروه بسته درخواستی:%s\n",
 		order.User.Fullname(),
 		order.User.TelID,
 		order.User.Username,
@@ -359,9 +379,17 @@ func onWatchOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			MessageText: "در جواب چه پیامی به کاربر ارسال شود؟",
 			Type:        form.TextField,
 		},
+		{
+			Name:        "custom_link",
+			MessageText: "در صورت استفاده از بسته خام لطفا لینک کانفیگ را وارد نمایید.",
+			Type:        form.TextField,
+			IsSkippable: true,
+		},
 	}
 	form := form.CreateForm("انصراف از ادامه پروسه", fields, chatID, update.CallbackQuery.From.ID, onSubmitOrder, onCancelOrder, nil)
 	form.Description = "شروع"
+	form.SkipButtonText = "رد شدن"
+	form.SkipMessageText = "از ورود لینک کانفیگ صرف نظر شد"
 	form.Show(ctx, b, update)
 }
 
@@ -375,9 +403,10 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	var order models.Order
 	db.Preload("User").Preload("Pack").First(&order, orderID)
 	order.AdminNote = form.FindField("carry_msg").Value
+	customLink := form.FindField("custom_link").Value
 	var txtMsg, orderResult string
 	if ok == "true" {
-		err := order.Verify(db, order.AdminNote)
+		err := order.Verify(db, order.AdminNote, customLink)
 		if err != nil {
 			txtMsg = "خطایی پیش آمده"
 			fmt.Println("Unable to verify order. err: ", err)
@@ -408,6 +437,19 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		Text:   txtMsg,
 	})
 
+	if order.Type == models.ActiveOrder {
+		shortLink, qrPath := order.Config(db).ShortLink(db)
+		fileContent, _ := os.ReadFile(qrPath)
+		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
+			ChatID:    form.ChatID,
+			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
+			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
+			ParseMode: tmodels.ParseModeMarkdown,
+		})
+		if err != nil {
+			fmt.Println("Unable to send config link and QR. err: ", err)
+		}
+	}
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

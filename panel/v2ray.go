@@ -1,58 +1,64 @@
 package panel
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/go-resty/resty/v2"
 )
 
-// shortLinkConfig translates the parsed V2Ray configuration into a short link.
-func (panel *Panel) ShortLinkConfig(description string, client Client) string {
+func (panel *Panel) GetInboundClient(client *Client) (*InboundClient, error) {
 	inbound, _ := panel.GetInbound(client.InboundID)
-	streamSt := inbound.StreamSettings
-	inboundClient, _ := inbound.FindClientFromEmail(client.Email)
-	// Construct the protocol-specific fields
-	protocolFields := fmt.Sprintf("type=%s", streamSt.Network)
+	return inbound.FindClientFromEmail(client.Email)
+}
 
-	// Construct the transport-specific fields (assuming WebSocket for this example)
-	transportFields := fmt.Sprintf("path=%s", url.QueryEscape(streamSt.WSSettings.Path))
-	if streamSt.WSSettings.Host != "" {
-		transportFields += fmt.Sprintf("&host=%s", streamSt.WSSettings.Host)
-	}
-	if streamSt.WSSettings.AcceptProxyProtocol {
-		transportFields += "&acceptProxyProtocol=true"
-	}
-	for key, value := range streamSt.WSSettings.Headers {
-		transportFields += fmt.Sprintf("&header-%s=%s", url.QueryEscape(key), url.QueryEscape(value))
+// shortLinkConfig translates the parsed V2Ray configuration into a short link.
+func (panel *Panel) ShortLinksConfig(title string, client Client) ([]string, error) {
+	shortLinks := []string{}
+
+	subLink, err := panel.SubLink(client)
+	if err != nil {
+		fmt.Println(err)
+		return shortLinks, err
 	}
 
-	// Construct the TLS-specific fields
-	tlsFields := fmt.Sprintf("security=%s", streamSt.Security)
-	if streamSt.Security == "tls" {
-		tlsFields += fmt.Sprintf("&sni=%s", streamSt.TLSSettings.ServerName)
-		// tlsFields += fmt.Sprintf("&minVersion=%s", streamSt.TLSSettings.MinVersion)
-		// tlsFields += fmt.Sprintf("&maxVersion=%s", streamSt.TLSSettings.MaxVersion)
-		if len(streamSt.TLSSettings.ALPN) > 0 {
-			tlsFields += fmt.Sprintf("&alpn=%s", url.QueryEscape(strings.Join(streamSt.TLSSettings.ALPN, ",")))
-		}
-		tlsFields += fmt.Sprintf("&allowInsecure=%v", streamSt.TLSSettings.Settings.AllowInsecure)
-		tlsFields += fmt.Sprintf("&fp=%s", streamSt.TLSSettings.Settings.Fingerprint)
-		tlsFields += fmt.Sprintf("&flow=%s", inboundClient.Flow)
+	resp, err := resty.New().
+		R().
+		Get(subLink)
+
+	if err != nil {
+		fmt.Println(err)
+		return shortLinks, err
 	}
 
-	// Assemble the short link
-	shortLink := fmt.Sprintf(
-		"%s://%s@%s:%d?%s&%s&%s#%s",
-		inbound.Protocol, // The protocol (vless, vmess, etc.)
-		inboundClient.ID,
-		os.Getenv("CONFIG_HOST"),
-		inbound.Port,
-		protocolFields,
-		transportFields,
-		tlsFields,
-		url.QueryEscape(description),
-	)
+	body := string(resp.Body())
+	shortBytes, err := base64.StdEncoding.DecodeString(body)
 
-	return shortLink
+	if err != nil {
+		fmt.Println(err)
+		return shortLinks, err
+	}
+
+	shortLinksStr := string(shortBytes)
+	for _, shortLink := range strings.Split(shortLinksStr, "\n") {
+		shortLink = strings.Split(shortLink, "#")[0] + "#" + title
+		shortLinks = append(shortLinks, shortLink)
+	}
+
+	return shortLinks, nil
+}
+
+func (panel *Panel) SubLink(client Client) (string, error) {
+	inboundClient, err := panel.GetInboundClient(&client)
+	if err != nil {
+		return "", err
+	}
+	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", os.Getenv("PANEL_SUB_URL"), os.Getenv("PANEL_SUB_PORT"), os.Getenv("PANEL_SUB_PATH"), inboundClient.SubID))
+	if err != nil {
+		return "", err
+	}
+	return link, nil
 }

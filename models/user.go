@@ -84,8 +84,15 @@ func (user *User) BuyPackByCharge(db *gorm.DB, pack *Pack) (*Order, error) {
 			return err
 		}
 
-		if err := order.Verify(tx, "خرید سیستمی"); err != nil {
+		if err := order.Verify(tx, "خرید سیستمی", "ثبت نشده"); err != nil {
 			return err
+		}
+
+		if pack.Type == CustomPack {
+			order.Type = PendLinkOrder
+			if res := tx.Save(&order); res.Error != nil {
+				return res.Error
+			}
 		}
 
 		user.Charge -= uint64(pack.Price)
@@ -120,9 +127,9 @@ func (user *User) Fullname() string {
 	return user.FirstName + " " + user.LastName
 }
 
-func (user *User) RetrieveOrders(db *gorm.DB, orderType OrderType, preloads ...string) []Order {
+func (user *User) RetrieveOrders(db *gorm.DB, orderTypes []OrderType, preloads ...string) []Order {
 	var orders []Order
-	query := db.Where(&Order{UserID: user.ID, Type: orderType})
+	query := db.Where("user_id = ?", user.ID).Where("type in (?)", orderTypes)
 	for _, preload := range preloads {
 		query.Preload(preload)
 	}
