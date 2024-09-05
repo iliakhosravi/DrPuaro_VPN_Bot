@@ -17,8 +17,8 @@ type Inbound struct {
 	Remark            string          `json:"remark"`
 	Enable            bool            `json:"enable"`
 	Port              int             `json:"port"`
-	strSettings       string          `json:"settings"`
-	strStreamSettings string          `json:"streamSettings"`
+	StrSettings       string          `json:"settings"`
+	StrStreamSettings string          `json:"streamSettings"`
 	Settings          InboundSettings `json:"-"`
 	StreamSettings    StreamSettings  `json:"-"`
 }
@@ -92,8 +92,8 @@ func (panel *Panel) GetInbounds() ([]Inbound, error) {
 	fmt.Println("inbounds: ", inbounds)
 
 	for _, inbound := range inbounds {
-		json.Unmarshal([]byte(inbound.strSettings), &inbound.Settings)
-		json.Unmarshal([]byte(inbound.strStreamSettings), &inbound.StreamSettings)
+		json.Unmarshal([]byte(inbound.StrSettings), &inbound.Settings)
+		json.Unmarshal([]byte(inbound.StrStreamSettings), &inbound.StreamSettings)
 	}
 
 	fmt.Println("\n\n\n\n\n\nafter marshal inbounds: ", inbounds)
@@ -120,8 +120,8 @@ func (panel *Panel) GetInbound(inboundID int) (Inbound, error) {
 	}
 
 	inbound := insRes.Object
-	json.Unmarshal([]byte(inbound.strSettings), &inbound.Settings)
-	json.Unmarshal([]byte(inbound.strStreamSettings), &inbound.StreamSettings)
+	json.Unmarshal([]byte(inbound.StrSettings), &inbound.Settings)
+	json.Unmarshal([]byte(inbound.StrStreamSettings), &inbound.StreamSettings)
 
 	return inbound, nil
 }
