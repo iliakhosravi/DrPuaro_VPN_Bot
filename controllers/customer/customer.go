@@ -1,10 +1,8 @@
 package customerController
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
@@ -12,6 +10,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	m "techybat.org/go-vpn/models"
+	msgTool "techybat.org/go-vpn/tools/message"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
 )
 
@@ -89,16 +88,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		fmt.Println("Error for show order handler: ", err)
 	}
 
-	if order.Type == m.ActiveOrder {
-		shortLink, qrPath := order.Config(db).ShortLink(db)
-		fileContent, _ := os.ReadFile(qrPath)
-		b.SendPhoto(ctx, &bot.SendPhotoParams{
-			ChatID:    chatID,
-			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
-			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
-			ParseMode: tmodels.ParseModeMarkdown,
-		})
-	}
+	msgTool.SendShortLink(ctx, b, chatID, order)
 }
 
 func createOrderButtons(orders []m.Order) []dialog.Button {
@@ -106,7 +96,7 @@ func createOrderButtons(orders []m.Order) []dialog.Button {
 	for _, order := range orders {
 		buttons = append(buttons, dialog.Button{
 			ID:              fmt.Sprintf("order%d", order.ID),
-			Text:            order.Pack.String(),
+			Text:            order.Name(database.GetDB()),
 			CallbackHandler: showOrderHandler,
 			CallbackData:    fmt.Sprint(order.ID),
 		})

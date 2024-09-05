@@ -193,6 +193,12 @@ func (o *Order) UserStr(db *gorm.DB) string {
 	return o.NormalStr(db)
 }
 
+func (order Order) Name(db *gorm.DB) string {
+	var o Order
+	db.Preload(clause.Associations).Preload("Pack.Category").Find(&o, order.ID)
+	return fmt.Sprintf("%d | %s", o.ID, o.Pack.String())
+}
+
 func (o *Order) NormalStr(db *gorm.DB) string {
 	var txtMsg string
 	var order Order

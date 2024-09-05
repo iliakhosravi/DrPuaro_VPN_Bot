@@ -32,12 +32,14 @@ func (user *User) Migrate(db *gorm.DB) {
 }
 
 func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) error {
-	db.First(user, &User{TelID: tuser.ID})
+	res := db.First(user, &User{TelID: tuser.ID})
 	user.FirstName = tuser.FirstName
 	user.LastName = tuser.LastName
 	user.Username = tuser.Username
 	user.TelID = tuser.ID
-	user.Charge, _ = strconv.ParseUint(os.Getenv("WALLET_INIT_BALANCE"), 0, 0)
+	if res.RowsAffected == 0 {
+		user.Charge, _ = strconv.ParseUint(os.Getenv("WALLET_INIT_BALANCE"), 0, 0)
+	}
 
 	if result := db.Save(user); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to create user: %v", result.Error)

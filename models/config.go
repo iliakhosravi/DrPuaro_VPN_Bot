@@ -9,8 +9,8 @@ import (
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"techybat.org/go-vpn/components/qr"
 	"techybat.org/go-vpn/panel"
+	"techybat.org/go-vpn/tools/qr"
 )
 
 type Config struct {

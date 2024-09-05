@@ -1,7 +1,6 @@
 package buy_controller
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
+	msgTool "techybat.org/go-vpn/tools/message"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -107,19 +107,8 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		MessageID: update.CallbackQuery.Message.Message.ID,
 	})
 
-	if order.Type == models.ActiveOrder {
-		shortLink, qrPath := order.Config(db).ShortLink(db)
-		fileContent, _ := os.ReadFile(qrPath)
-		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
-			ChatID:    chatID,
-			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
-			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
-			ParseMode: tmodels.ParseModeMarkdown,
-		})
-		if err != nil {
-			fmt.Println("Unable to send config link and QR. err: ", err)
-		}
-	}
+	msgTool.SendShortLink(ctx, b, chatID, *order)
+
 }
 
 func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -437,19 +426,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		Text:   txtMsg,
 	})
 
-	if order.Type == models.ActiveOrder {
-		shortLink, qrPath := order.Config(db).ShortLink(db)
-		fileContent, _ := os.ReadFile(qrPath)
-		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
-			ChatID:    form.ChatID,
-			Caption:   fmt.Sprintf("لینک کانفیگ:\n`%s`", shortLink),
-			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
-			ParseMode: tmodels.ParseModeMarkdown,
-		})
-		if err != nil {
-			fmt.Println("Unable to send config link and QR. err: ", err)
-		}
-	}
+	msgTool.SendShortLink(ctx, b, form.ChatID, order)
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
