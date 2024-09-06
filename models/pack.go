@@ -44,11 +44,52 @@ func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
 }
 
 func (pack Pack) Name() string {
-	return fmt.Sprintf("%dGB %dD", pack.Traffic, pack.Period)
+	return fmt.Sprintf("%s %dD", pack.TrafficName(), pack.Period)
 }
 
 func (pack Pack) String() string {
-	return fmt.Sprintf("حجم %d گیگابایت | %s | %d تومان", pack.Traffic, StringPeriod(pack.Period), pack.Price)
+	return fmt.Sprintf("%s | %s | %d تومان", pack.TrafficString(), StringPeriod(pack.Period), pack.Price)
+}
+
+func (pack Pack) TrafficString() string {
+	gb := pack.Traffic / 1024
+	mb := pack.Traffic % 1024
+	result := ""
+	if gb > 0 {
+		result += fmt.Sprintf("%d گیگابایت", gb)
+	}
+
+	if mb > 0 {
+		if gb > 0 {
+			result += " و "
+		}
+		result += fmt.Sprintf("%d مگابایت", mb)
+	}
+
+	return result
+}
+
+func (pack Pack) TrafficName() string {
+	gb, mb := pack.TrafficGbMb()
+	result := ""
+	if gb > 0 {
+		result += fmt.Sprintf("%d GB", gb)
+	}
+
+	if mb > 0 {
+		if gb > 0 {
+			result += " "
+		}
+		result += fmt.Sprintf("%d MB", mb)
+	}
+
+	return result
+}
+
+func (pack Pack) TrafficGbMb() (int, int) {
+	gb := pack.Traffic / 1024
+	mb := pack.Traffic % 1024
+	return gb, mb
 }
 
 func (pack Pack) ConfigDesc() string {
@@ -56,7 +97,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("دسته بندی:%s\nترافیک: %dGB\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Category.Name, pack.Traffic, pack.Period, pack.Price, pack.Status)
+	return fmt.Sprintf("دسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Category.Name, pack.TrafficName(), pack.Period, pack.Price, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {

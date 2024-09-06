@@ -88,10 +88,11 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 
 	if o.Pack.Type == SanaeiPack {
 		p := panel.GetPanel()
+		gb, mb := o.Pack.TrafficGbMb()
 		clientForm := panel.ClientForm{
 			ID:         uuid.NewString(),
 			Email:      fmt.Sprintf("U%d_O%d", order.UserID, order.ID),
-			TotalGB:    int64(o.Pack.Traffic) * panel.ONE_GB,
+			TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
 			ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
 			Enable:     true,
 			TgID:       fmt.Sprint(o.User.TelID),

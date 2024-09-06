@@ -7,6 +7,7 @@ import (
 
 const (
 	ONE_GB             = 1073741824
+	ONE_MB             = 1048576
 	CLIENT_PATH        = "/panel/api/inbounds/getClientTraffics/"
 	ADD_CLIENT_PATH    = "/panel/api/inbounds/addClient"
 	UPDATE_CLIENT_PATH = "/panel/api/inbounds/updateClient/"

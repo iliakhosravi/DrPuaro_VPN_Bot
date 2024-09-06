@@ -297,7 +297,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	fields := []form.Field{
 		{
 			Name:        "traffic",
-			MessageText: fmt.Sprintf("میزان حجم بسته بر حسب گیگ چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.\nمقدار فعلی:%v", pack.Traffic),
+			MessageText: fmt.Sprintf("میزان حجم بسته بر حسب مگابایت چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.\nمقدار فعلی:%v", pack.Traffic),
 			Validator:   models.PackValidator("traffic"),
 			Value:       fmt.Sprint(pack.Traffic),
 			IsSkippable: true,
