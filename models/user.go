@@ -13,8 +13,9 @@ import (
 type UserType string
 
 const (
-	NoramlUser UserType = "normal"
-	AdminUser  UserType = "admin"
+	NoramlUser  UserType = "normal"
+	TrustedUser UserType = "trusted"
+	AdminUser   UserType = "admin"
 )
 
 type User struct {

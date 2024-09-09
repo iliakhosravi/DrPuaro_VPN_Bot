@@ -63,6 +63,9 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 				{
 					{Text: "مدیریت کارت ها", NodeID: "card-manage"},
 				},
+				{
+					{ID: "add-trusted-user", Text: "افزودن کاربر معتمد", CallbackHandler: auth.AdminMiddleware(adminController.AddTrustedUser)},
+				},
 			},
 		},
 		{

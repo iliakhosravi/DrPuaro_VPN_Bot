@@ -34,7 +34,7 @@ func main() {
 	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
 	opts := []bot.Option{
-		bot.WithMiddlewares(auth.UserMiddleware),
+		bot.WithMiddlewares(auth.UserMiddleware, auth.TrustedMiddleware),
 		bot.WithDefaultHandler(main2.MainController),
 		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(admin_menu.AdminController)),
 	}

@@ -19,6 +19,30 @@ const (
 	UserKey
 )
 
+func TrustedMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+		var user models.User
+		var tuser *tmodels.User
+		switch {
+		case update.Message != nil:
+			tuser = update.Message.From
+		case update.CallbackQuery != nil:
+			tuser = &update.CallbackQuery.From
+		default:
+			tuser = &tmodels.User{}
+		}
+		user.CreateOrFindUserByTelegram(database.GetDB(), tuser)
+		if os.Getenv("ONLY_TRUSTED_USERS") == "true" && user.Type == models.NoramlUser {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: user.TelID,
+				Text:   "عدم دسترسی کاربر",
+			})
+			return
+		}
+		next(ctx, b, update)
+	}
+}
+
 func UserMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		var user models.User
