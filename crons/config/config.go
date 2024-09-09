@@ -75,23 +75,28 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 		endTime := time.UnixMilli(client.ExpiryTime)
 		duration := time.Until(endTime)
 		daysDuration := int(duration.Hours()) / 24
+		notified := false
 		switch {
 		case duration.Hours() <= 0:
 			notifyDepletion(ctx, b, config, true)
+			notified = true
+
 		case daysDuration <= 7:
 			notifyEndDays(ctx, b, config, daysDuration)
 		}
 
-		remainedTraffic := client.RemainedTraffic()
-		switch {
-		case remainedTraffic <= 0:
-			notifyDepletion(ctx, b, config, false)
-		case remainedTraffic <= 0.2:
-			notifyRemainedTraffic(ctx, b, config, 200)
-		case remainedTraffic <= 0.5:
-			notifyRemainedTraffic(ctx, b, config, 500)
-		case remainedTraffic <= 1:
-			notifyRemainedTraffic(ctx, b, config, 1000)
+		if !notified {
+			remainedTraffic := client.RemainedTraffic()
+			switch {
+			case remainedTraffic <= 0:
+				notifyDepletion(ctx, b, config, false)
+			case remainedTraffic <= 0.2:
+				notifyRemainedTraffic(ctx, b, config, 200)
+			case remainedTraffic <= 0.5:
+				notifyRemainedTraffic(ctx, b, config, 500)
+			case remainedTraffic <= 1:
+				notifyRemainedTraffic(ctx, b, config, 1000)
+			}
 		}
 
 		config.SyncByClient(db, client)
@@ -109,7 +114,7 @@ func notifyRemainedTraffic(ctx context.Context, b *bot.Bot, config m.Config, rem
 		ChatID: config.Order.User.TelID,
 		Text:   txtMsg,
 	})
-	notifs.Traffic[remainedMB] = append(notifs.EndDays[remainedMB], config.OrderID)
+	notifs.Traffic[remainedMB] = append(notifs.Traffic[remainedMB], config.OrderID)
 }
 
 func notifyEndDays(ctx context.Context, b *bot.Bot, config m.Config, daysLeft int) {
