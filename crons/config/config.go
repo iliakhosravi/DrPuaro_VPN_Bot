@@ -2,7 +2,10 @@ package config_crons
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/go-telegram/bot"
@@ -11,32 +14,57 @@ import (
 	m "techybat.org/go-vpn/models"
 )
 
-var notifiedDepletions = []uint{
-	0,
-}
-var notifiedEndDays = map[int][]uint{
-	1: {},
-	2: {},
-	3: {},
-	4: {},
-	5: {},
-	6: {},
-	7: {},
+var (
+	notifs     *Notifs
+	notifsOnce sync.Once
+)
+
+type Notifs struct {
+	Depletions []uint         `json:"depletion"`
+	EndDays    map[int][]uint `json:"end-days"`
+	Traffic    map[int][]uint `json:"traffic"`
 }
 
-var notifiedTraffic = map[int][]uint{
-	200:  {},
-	500:  {},
-	1000: {},
+func getNotifs() *Notifs {
+	notifsOnce.Do(func() {
+		importNotifs()
+		if len(notifs.Depletions) > 0 {
+			return
+		}
+		notifs = &Notifs{
+			Depletions: []uint{
+				0,
+			},
+
+			EndDays: map[int][]uint{
+				1: {},
+				2: {},
+				3: {},
+				4: {},
+				5: {},
+				6: {},
+				7: {},
+			},
+
+			Traffic: map[int][]uint{
+				200:  {},
+				500:  {},
+				1000: {},
+			},
+		}
+	})
+	return notifs
 }
 
 func NotifyAll(ctx context.Context, b *bot.Bot) {
 	db := database.GetDB()
 	var configs []m.Config
-	orderQuery := db.Model(&m.Order{}).Select("id").Where("type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).Where("id not in (?)", notifiedDepletions)
+	getNotifs()
+	packQuery := db.Model(&m.Pack{}).Select("id").Where("type = ?", m.SanaeiPack)
+	orderQuery := db.Model(&m.Order{}).Select("id").Where("pack_id in (?)", packQuery).Where("type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).Where("id not in (?)", notifs.Depletions)
 	db.Where("order_id in (?)", orderQuery).Preload(clause.Associations).Preload("Order.User").Find(&configs)
 
-	fmt.Printf("NotifyAll configs: %v\n", configs)
+	fmt.Printf("NotifyAll configs\n")
 
 	for _, config := range configs {
 		client, err := config.GetClient()
@@ -47,7 +75,6 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 		endTime := time.UnixMilli(client.ExpiryTime)
 		duration := time.Until(endTime)
 		daysDuration := int(duration.Hours()) / 24
-		fmt.Printf("Config: %d | Days Duration: %d\n", config.ID, daysDuration)
 		switch {
 		case duration.Hours() <= 0:
 			notifyDepletion(ctx, b, config, true)
@@ -69,10 +96,11 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 
 		config.SyncByClient(db, client)
 	}
+	saveNotifs()
 }
 
 func notifyRemainedTraffic(ctx context.Context, b *bot.Bot, config m.Config, remainedMB int) {
-	if contains(notifiedTraffic[remainedMB], config.OrderID) {
+	if contains(notifs.Traffic[remainedMB], config.OrderID) {
 		return
 	}
 	db := database.GetDB()
@@ -81,11 +109,11 @@ func notifyRemainedTraffic(ctx context.Context, b *bot.Bot, config m.Config, rem
 		ChatID: config.Order.User.TelID,
 		Text:   txtMsg,
 	})
-	notifiedTraffic[remainedMB] = append(notifiedEndDays[remainedMB], config.OrderID)
+	notifs.Traffic[remainedMB] = append(notifs.EndDays[remainedMB], config.OrderID)
 }
 
 func notifyEndDays(ctx context.Context, b *bot.Bot, config m.Config, daysLeft int) {
-	if contains(notifiedEndDays[daysLeft], config.OrderID) {
+	if contains(notifs.EndDays[daysLeft], config.OrderID) {
 		return
 	}
 	db := database.GetDB()
@@ -94,7 +122,7 @@ func notifyEndDays(ctx context.Context, b *bot.Bot, config m.Config, daysLeft in
 		ChatID: config.Order.User.TelID,
 		Text:   txtMsg,
 	})
-	notifiedEndDays[daysLeft] = append(notifiedEndDays[daysLeft], config.OrderID)
+	notifs.EndDays[daysLeft] = append(notifs.EndDays[daysLeft], config.OrderID)
 }
 
 func notifyDepletion(ctx context.Context, b *bot.Bot, config m.Config, isTime bool) {
@@ -109,7 +137,7 @@ func notifyDepletion(ctx context.Context, b *bot.Bot, config m.Config, isTime bo
 		ChatID: config.Order.User.TelID,
 		Text:   txtMsg,
 	})
-	notifiedDepletions = append(notifiedDepletions, config.OrderID)
+	notifs.Depletions = append(notifs.Depletions, config.OrderID)
 }
 
 func contains(slice []uint, item uint) bool {
@@ -119,4 +147,18 @@ func contains(slice []uint, item uint) bool {
 		}
 	}
 	return false
+}
+
+func saveNotifs() {
+	file, _ := os.OpenFile("notifs.json", os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	encoder := json.NewEncoder(file)
+	encoder.Encode(notifs)
+}
+
+func importNotifs() {
+	file, _ := os.ReadFile("notifs.json")
+	if notifs == nil {
+		notifs = &Notifs{}
+	}
+	json.Unmarshal(file, notifs)
 }
