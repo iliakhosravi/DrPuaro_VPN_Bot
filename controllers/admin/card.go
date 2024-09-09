@@ -45,7 +45,7 @@ func onSubmitAddCard(ctx context.Context, b *bot.Bot, update *tm.Update) {
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: form.ChatID,
-		Text:   bot.EscapeMarkdown(txtMsg),
+		Text:   txtMsg,
 	})
 }
 
