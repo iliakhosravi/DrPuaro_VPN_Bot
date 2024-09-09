@@ -19,7 +19,7 @@ func SendShortLink(ctx context.Context, b *bot.Bot, chatID any, order m.Order) {
 		fileContent, _ := os.ReadFile(qrPath)
 		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
 			ChatID:    chatID,
-			Caption:   fmt.Sprintf("%s\n🔗 لینک:\n`%s`\nبرای کپی کردن آن روی آن کلیک کنید", bot.EscapeMarkdown(order.Pack.Name()), bot.EscapeMarkdown(shortLink)),
+			Caption:   fmt.Sprintf("%s\n🔗 لینک:\n`%s`\nبرای کپی کردن لینک روی آن کلیک کنید", bot.EscapeMarkdown(order.Pack.Name()), bot.EscapeMarkdown(shortLink)),
 			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
 			ParseMode: tmodels.ParseModeMarkdown,
 		})
