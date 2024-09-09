@@ -298,7 +298,7 @@ func VerifyBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	for _, order := range orders {
 		orderBtns = append(orderBtns, dialog.Button{
 			ID:              fmt.Sprintf("Order%d", order.ID),
-			Text:            order.Pack.String(),
+			Text:            order.Name(db),
 			CallbackHandler: onWatchOrder,
 			CallbackData:    strconv.FormatUint(uint64(order.ID), 10),
 		})
