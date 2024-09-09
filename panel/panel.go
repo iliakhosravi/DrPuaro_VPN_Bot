@@ -23,18 +23,22 @@ var (
 
 func GetPanel() *Panel {
 	panelOnce.Do(func() {
-		username, password := os.Getenv("PANEL_USERNAME"), os.Getenv("PANEL_PASSWORD")
-		url := os.Getenv("PANEL_URL")
-		panel = &Panel{
-			client: resty.New(),
-		}
-
-		panel.client.SetBaseURL(url)
-
-		if err := panel.Login(username, password); err != nil {
-			panic(err)
-		}
+		Setup()
 	})
 
 	return panel
+}
+
+func Setup() {
+	username, password := os.Getenv("PANEL_USERNAME"), os.Getenv("PANEL_PASSWORD")
+	url := os.Getenv("PANEL_URL")
+	panel = &Panel{
+		client: resty.New(),
+	}
+
+	panel.client.SetBaseURL(url)
+
+	if err := panel.Login(username, password); err != nil {
+		panic(err)
+	}
 }

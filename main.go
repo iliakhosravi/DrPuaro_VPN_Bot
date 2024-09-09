@@ -6,8 +6,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+
 	"techybat.org/go-vpn/controllers/admin_menu"
 	main2 "techybat.org/go-vpn/controllers/main_controller"
+	"techybat.org/go-vpn/panel"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
@@ -48,6 +50,7 @@ func main() {
 
 	// c.AddFunc("@every 30s", func() { configCrons.NotifyAll(ctx, b) })
 	c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
+	c.AddFunc("@every 5m", panel.Setup)
 
 	c.Start()
 
