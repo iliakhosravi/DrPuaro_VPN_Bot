@@ -27,7 +27,7 @@ func (card *Card) Migrate(db *gorm.DB) {
 
 func ReserveActiveCard(db *gorm.DB) error {
 	var card Card
-	result := db.Where("status = ?", ActiveCard).First(card)
+	result := db.Where("status = ?", ActiveCard).First(&card)
 	if result.RowsAffected == 0 {
 		return nil
 	}

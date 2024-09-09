@@ -2,6 +2,7 @@ package admin_controller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-telegram/bot"
 	tm "github.com/go-telegram/bot/models"
@@ -39,11 +40,12 @@ func onSubmitAddCard(ctx context.Context, b *bot.Bot, update *tm.Update) {
 	txtMsg := "افزودن کارت با موفقیت انجام شد. این کارت به عنوان کارت پیش فرض شما برای پرداخت به مشتریان نمایش داده خواهد شد."
 	if err := m.AddNewCard(db, &card); err != nil {
 		txtMsg = "خطایی پیش آمده"
+		fmt.Println("Unable to add new card: ", err)
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: form.ChatID,
-		Text:   txtMsg,
+		Text:   bot.EscapeMarkdown(txtMsg),
 	})
 }
 
