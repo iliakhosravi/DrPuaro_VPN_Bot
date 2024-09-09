@@ -52,6 +52,7 @@ type Field struct {
 	Filter        Filter
 	IsSkippable   bool
 	CustomHandler CustomHandler
+	ParseMode     tmodels.ParseMode
 }
 
 type Filter func(value string) string
@@ -178,8 +179,9 @@ func (form *Form) loadNextField(ctx context.Context, b *bot.Bot, update *tmodels
 	}
 
 	params := &bot.SendMessageParams{
-		ChatID: form.ChatID,
-		Text:   nextField.MessageText,
+		ChatID:    form.ChatID,
+		Text:      nextField.MessageText,
+		ParseMode: nextField.ParseMode,
 	}
 
 	params.ReplyMarkup = form.buildKB()
