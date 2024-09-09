@@ -6,3 +6,4 @@
 main
 /.idea
 /qr
+.env.tizz
