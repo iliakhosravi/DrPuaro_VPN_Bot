@@ -107,7 +107,7 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		MessageID: update.CallbackQuery.Message.Message.ID,
 	})
 
-	msgTool.SendShortLink(ctx, b, chatID, *order)
+	msgTool.SendSubLink(ctx, b, chatID, *order)
 
 }
 
@@ -427,7 +427,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		Text:   txtMsg,
 	})
 
-	msgTool.SendShortLink(ctx, b, form.ChatID, order)
+	msgTool.SendSubLink(ctx, b, form.ChatID, order)
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

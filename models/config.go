@@ -28,6 +28,12 @@ func (config *Config) Migrate(db *gorm.DB) {
 	db.AutoMigrate(&Config{})
 }
 
+func (config *Config) Title(db *gorm.DB) string {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	return fmt.Sprintf("%s | %s | %s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL"), c.Order.Pack.Name())
+}
+
 func DateValidator(value string) (bool, string) {
 	_, err := time.Parse("2006-01-02", value)
 
@@ -45,7 +51,7 @@ func (config *Config) ShortLink(db *gorm.DB) (string, string) {
 	shortLink := c.CustomLink
 	if c.Order.Pack.Type == SanaeiPack {
 		client, _ := c.GetClient()
-		shortLinks, _ := panel.GetPanel().ShortLinksConfig(fmt.Sprintf("%s | %s", os.Getenv("TG_CHANNEL"), c.Order.Pack.Name()), client)
+		shortLinks, _ := panel.GetPanel().ShortLinksConfig(c.Title(db), client)
 		shortLink = shortLinks[0]
 	}
 	qrPath := fmt.Sprintf("./%s/%d.jpg", os.Getenv("QR_PATH"), c.ID)
@@ -78,7 +84,7 @@ func (config *Config) Link(db *gorm.DB) string {
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {
 		client, _ := c.GetClient()
-		link, _ := panel.GetPanel().SubLink(client)
+		link, _ := panel.GetPanel().PanelSubLink(client)
 		return link
 	}
 

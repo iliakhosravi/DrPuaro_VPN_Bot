@@ -88,7 +88,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		fmt.Println("Error for show order handler: ", err)
 	}
 
-	msgTool.SendShortLink(ctx, b, chatID, order)
+	msgTool.SendSubLink(ctx, b, chatID, order)
 }
 
 func createOrderButtons(orders []m.Order) []dialog.Button {
