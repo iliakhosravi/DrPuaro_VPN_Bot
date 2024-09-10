@@ -96,7 +96,7 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 			ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
 			Enable:     true,
 			TgID:       fmt.Sprint(o.User.TelID),
-			SubID:      bot.RandomString(8),
+			SubID:      bot.RandomString(16),
 		}
 
 		if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
