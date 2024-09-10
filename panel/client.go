@@ -149,7 +149,7 @@ func (panel *Panel) ResetClientStats(inboundID int, email string) (Client, error
 }
 
 func (client *Client) RemainedTraffic() int {
-	return (client.Total - client.Up + client.Down) / ONE_MB
+	return (client.Total - (client.Up + client.Down)) / ONE_MB
 }
 
 // func generateClientPayload(uuid, email, tgId string, totalGB, limitIP int, expiryTime int64) string {
