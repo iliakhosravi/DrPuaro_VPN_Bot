@@ -38,14 +38,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	id, ok := vars["id"]
 	if !ok {
 		http.Error(w, "sub id is required", http.StatusBadRequest)
-		fmt.Print(fmt.Errorf("Requested Subscription failed:\n subid:%s\n", id))
+		fmt.Printf("requested Subscription failed: subid:%s\n", id)
 		return
 	}
 	title, _ := getTitle(id)
 	short, _ := panel.ShortLinkConfigFromSubID(title, id)
 	vlessStrings, _ := getStatusConfigs(id)
 	for _, config := range extractIPs(readLines()) {
-		config.title = title
+		config.title = title + " | " + config.operator
 		config.subID = id
 		config.shortLink = short
 		vlessStrings = append(vlessStrings, config.stringify())
