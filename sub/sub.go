@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
@@ -41,7 +43,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	title, _ := getTitle(id)
 	short, _ := panel.ShortLinkConfigFromSubID(title, id)
-	var vlessStrings []string
+	vlessStrings, _ := getStatusConfigs(id)
 	for _, config := range extractIPs(readLines()) {
 		config.title = title
 		config.subID = id
@@ -53,6 +55,31 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(response))
 	fmt.Printf("Requested Subscription: subID:%s\n", id)
+}
+
+func getStatusConfigs(subID string) ([]string, error) {
+	db := database.GetDB()
+	statusConfigs := []string{}
+	var config m.Config
+	if res := db.Preload(clause.Associations).Preload("Order.Pack").Find(&config, "sub_id = ?", subID); res.Error != nil {
+		return statusConfigs, res.Error
+	}
+
+	traffic, err := config.TrafficName(db)
+	if err != nil {
+		return statusConfigs, err
+	}
+	trafficTitle := fmt.Sprintf("📊 %s / %s | #%d", traffic, config.Order.Pack.TrafficName(), config.OrderID)
+	trafficTitle = url.QueryEscape(trafficTitle)
+	statusConfigs = append(statusConfigs, fmt.Sprintf("trojan://uuid@1.1.1.1:2020?security=tls&headerType=none&type=tcp#%s", trafficTitle))
+	endDate, err := config.EndDate(db)
+	if err != nil {
+		return statusConfigs, err
+	}
+	remainedTime, _ := config.RemainedDateStr(db)
+	statusConfigs = append(statusConfigs, fmt.Sprintf("🗓 %s | %s | #%d", endDate.Format("y/MM/dd"), remainedTime, config.OrderID))
+	statusConfigs[1] = fmt.Sprintf("trojan://uuid@1.1.1.1:2020?security=tls&headerType=none&type=tcp#%s", url.QueryEscape(statusConfigs[1]))
+	return statusConfigs, nil
 }
 
 func getTitle(subID string) (string, error) {
