@@ -190,6 +190,53 @@ func (order *Order) Config(db *gorm.DB) *Config {
 	return &config
 }
 
+func (config Config) TrafficString(db *gorm.DB) (string, error) {
+	gb, mb, err := config.TrafficGbMb(db)
+	if err != nil {
+		return "", err
+	}
+	result := ""
+	if gb > 0 {
+		result += fmt.Sprintf("%d گیگابایت", gb)
+	}
+
+	if mb > 0 {
+		if gb > 0 {
+			result += " و "
+		}
+		result += fmt.Sprintf("%d مگابایت", mb)
+	}
+
+	return result, nil
+}
+
+func (config Config) TrafficName(db *gorm.DB) (string, error) {
+	gb, mb, err := config.TrafficGbMb(db)
+	if err != nil {
+		return "", err
+	}
+	result := ""
+	if gb > 0 {
+		result += fmt.Sprintf("%d GB", gb)
+	}
+
+	if mb > 0 {
+		if gb > 0 {
+			result += " "
+		}
+		result += fmt.Sprintf("%d MB", mb)
+	}
+
+	return result, nil
+}
+
+func (config Config) TrafficGbMb(db *gorm.DB) (int, int, error) {
+	traffic, err := config.RemainedTraffic(db)
+	gb := traffic / 1024
+	mb := traffic % 1024
+	return gb, mb, err
+}
+
 func (o *Order) UserStr(db *gorm.DB) string {
 	return o.NormalStr(db)
 }
@@ -213,12 +260,11 @@ func (o *Order) NormalStr(db *gorm.DB) string {
 		orderDate := pt.Format(dateFormat)
 		endDate, _ := config.EndDate(db)
 		endDateStr := endDate.Format(dateFormat)
-		remainedTraffic, err := config.RemainedTraffic(db)
-		remainedTrafficStr := fmt.Sprintf("%.2f", remainedTraffic)
+		remainedTrafficStr, err := config.TrafficString(db)
 		if err != nil {
 			remainedTrafficStr = "N/A"
 		}
-		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s GB\nتاریخ اتمام دوره:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr)
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s\nتاریخ اتمام دوره:%s", order.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr)
 	} else {
 		pt := ptime.New(order.CreatedAt)
 		showDate := pt.Format("d MMM y")

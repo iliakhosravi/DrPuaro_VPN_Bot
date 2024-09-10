@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	ptime "github.com/yaa110/go-persian-calendar"
@@ -118,7 +119,35 @@ func (config *Config) EndDate(db *gorm.DB) (ptime.Time, error) {
 	return ptime.New(c.StartDate.AddDate(0, 0, c.Order.Pack.Period)), nil
 }
 
-func (config *Config) RemainedTraffic(db *gorm.DB) (float32, error) {
+func (config *Config) RemainedDateStr(db *gorm.DB) (string, error) {
+	endDate, err := config.EndDate(db)
+	if err != nil {
+		return "", nil
+	}
+
+	duration := time.Until(endDate.Time())
+	hours := int(duration.Hours())
+	days := hours / 24
+	hours = hours % 24
+	mins := int(duration.Minutes()) % 60
+
+	result := ""
+	if days > 0 {
+		result += fmt.Sprintf("%dD ", days)
+	}
+
+	if hours > 0 {
+		result += fmt.Sprintf("%dH ", hours)
+	}
+
+	if mins > 0 {
+		result += fmt.Sprintf("%dM", mins)
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
+func (config *Config) RemainedTraffic(db *gorm.DB) (int, error) {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {

@@ -90,11 +90,11 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 			switch {
 			case remainedTraffic <= 0:
 				notifyDepletion(ctx, b, config, false)
-			case remainedTraffic <= 0.2:
+			case remainedTraffic <= 200:
 				notifyRemainedTraffic(ctx, b, config, 200)
-			case remainedTraffic <= 0.5:
+			case remainedTraffic <= 500:
 				notifyRemainedTraffic(ctx, b, config, 500)
-			case remainedTraffic <= 1:
+			case remainedTraffic <= 1000:
 				notifyRemainedTraffic(ctx, b, config, 1000)
 			}
 		}

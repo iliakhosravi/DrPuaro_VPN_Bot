@@ -148,8 +148,8 @@ func (panel *Panel) ResetClientStats(inboundID int, email string) (Client, error
 	return panel.GetClient(email)
 }
 
-func (client *Client) RemainedTraffic() float32 {
-	return float32(client.Total-client.Up+client.Down) / ONE_GB
+func (client *Client) RemainedTraffic() int {
+	return (client.Total - client.Up + client.Down) / ONE_MB
 }
 
 // func generateClientPayload(uuid, email, tgId string, totalGB, limitIP int, expiryTime int64) string {
