@@ -469,7 +469,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		Text:   txtMsg,
 	})
 
-	msgTool.SendSubLink(ctx, b, form.ChatID, order)
+	msgTool.SendSubLink(ctx, b, order.User.TelID, order)
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
