@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-telegram/bot"
+	"github.com/google/uuid"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -145,6 +147,80 @@ func (config *Config) RemainedDateStr(db *gorm.DB) (string, error) {
 	}
 
 	return strings.TrimSpace(result), nil
+}
+
+func (config *Config) DepleteSanaei(db *gorm.DB, o Order) error {
+	p := panel.GetPanel()
+	gb, mb := o.Pack.TrafficGbMb()
+
+	if config.Email == "" {
+		config.Email = fmt.Sprintf("U%d_O%d", o.UserID, o.ID)
+	}
+
+	if config.UUID == "" {
+		config.UUID = uuid.NewString()
+	}
+
+	clientForm := panel.ClientForm{
+		ID:         config.UUID,
+		Email:      config.Email,
+		TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
+		ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
+		Enable:     false,
+		TgID:       fmt.Sprint(o.User.TelID),
+		SubID:      config.SubID,
+	}
+
+	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
+		return err
+	}
+
+	config.UUID = clientForm.ID
+	res := db.Save(config)
+	return res.Error
+}
+
+func (config *Config) SetupSanaei(db *gorm.DB, o Order) error {
+	p := panel.GetPanel()
+	gb, mb := o.Pack.TrafficGbMb()
+	if config.SubID == "" {
+		config.SubID = bot.RandomString(16)
+	}
+
+	if config.UUID == "" {
+		config.UUID = uuid.NewString()
+	}
+
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	if config.Email == "" {
+		config.Email = fmt.Sprintf("U%d_C%d", o.UserID, config.ID)
+	}
+
+	clientForm := panel.ClientForm{
+		ID:         config.UUID,
+		Email:      config.Email,
+		TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
+		ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
+		Enable:     true,
+		TgID:       fmt.Sprint(o.User.TelID),
+		SubID:      config.SubID,
+	}
+
+	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
+		return err
+	}
+	if _, err := p.ResetClientStats(o.Pack.InboundID, clientForm.Email); err != nil {
+		return err
+	}
+
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	return nil
 }
 
 func (config *Config) RemainedTraffic(db *gorm.DB) (int, error) {

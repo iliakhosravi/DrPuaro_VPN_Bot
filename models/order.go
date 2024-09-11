@@ -3,12 +3,9 @@ package models
 import (
 	"fmt"
 
-	"github.com/go-telegram/bot"
-	"github.com/google/uuid"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"techybat.org/go-vpn/panel"
 )
 
 type OrderType string
@@ -80,38 +77,16 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 	order.Type = ActiveOrder
 	order.AdminNote = adminNote
 
-	var config Config = Config{}
-	db.Where(&Config{OrderID: order.ID}).First(&config)
+	config := o.Config(db)
 	config.OrderID = order.ID
 	config.StartDate = ptime.Now().Time()
 	config.CustomLink = customLink
 
-	if o.Pack.Type == SanaeiPack {
-		p := panel.GetPanel()
-		gb, mb := o.Pack.TrafficGbMb()
-		clientForm := panel.ClientForm{
-			ID:         uuid.NewString(),
-			Email:      fmt.Sprintf("U%d_O%d", order.UserID, order.ID),
-			TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
-			ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
-			Enable:     true,
-			TgID:       fmt.Sprint(o.User.TelID),
-			SubID:      bot.RandomString(16),
-		}
-
-		if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
-			return err
-		}
-		if _, err := p.ResetClientStats(o.Pack.InboundID, clientForm.Email); err != nil {
-			return err
-		}
-
-		config.SubID = clientForm.SubID
-		config.Email = clientForm.Email
-		config.UUID = clientForm.ID
-	}
-
 	err := db.Transaction(func(tx *gorm.DB) error {
+		if o.Pack.Type == SanaeiPack {
+			config.SetupSanaei(tx, o)
+		}
+
 		if result := tx.Save(&config); result.RowsAffected == 0 {
 			return fmt.Errorf("unable to update to verify order: %v", result.Error)
 		}
@@ -128,6 +103,7 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 func (order *Order) Dismiss(db *gorm.DB, adminNote string) error {
 	order.Type = DismissedOrder
 	order.AdminNote = adminNote
+
 	if result := db.Save(order); result.RowsAffected == 0 {
 		return fmt.Errorf("unable to dismiss order: %v", result.Error)
 	}
@@ -135,11 +111,20 @@ func (order *Order) Dismiss(db *gorm.DB, adminNote string) error {
 }
 
 func (order *Order) Deplete(db *gorm.DB) error {
+	var o Order
+	db.Preload(clause.Associations).Find(&o, order.ID)
 	order.Type = DepletedOrder
-	if result := db.Save(order); result.RowsAffected == 0 {
-		return fmt.Errorf("unable to deplete order: %v", result.Error)
-	}
-	return nil
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if o.Pack.Type == SanaeiPack {
+			o.Config(tx).DepleteSanaei(tx, o)
+		}
+		if result := db.Save(order); result.RowsAffected == 0 {
+			return fmt.Errorf("unable to deplete order: %v", result.Error)
+		}
+		return nil
+	})
+	return err
 }
 
 func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
@@ -196,12 +181,12 @@ func (config Config) TrafficString(db *gorm.DB) (string, error) {
 		return "", err
 	}
 	result := ""
-	if gb > 0 {
+	if gb != 0 {
 		result += fmt.Sprintf("%d گیگابایت", gb)
 	}
 
-	if mb > 0 {
-		if gb > 0 {
+	if mb != 0 {
+		if gb != 0 {
 			result += " و "
 		}
 		result += fmt.Sprintf("%d مگابایت", mb)
@@ -216,12 +201,12 @@ func (config Config) TrafficName(db *gorm.DB) (string, error) {
 		return "", err
 	}
 	result := ""
-	if gb > 0 {
+	if gb != 0 {
 		result += fmt.Sprintf("%d GB", gb)
 	}
 
-	if mb > 0 {
-		if gb > 0 {
+	if mb != 0 {
+		if gb != 0 {
 			result += " "
 		}
 		result += fmt.Sprintf("%d MB", mb)
@@ -232,9 +217,14 @@ func (config Config) TrafficName(db *gorm.DB) (string, error) {
 
 func (config Config) TrafficGbMb(db *gorm.DB) (int, int, error) {
 	traffic, err := config.RemainedTraffic(db)
+	sign := 1
+	if traffic < 0 {
+		sign = -1
+		traffic *= -1
+	}
 	gb := traffic / 1024
 	mb := traffic % 1024
-	return gb, mb, err
+	return sign * gb, sign * mb, err
 }
 
 func (o *Order) UserStr(db *gorm.DB) string {
