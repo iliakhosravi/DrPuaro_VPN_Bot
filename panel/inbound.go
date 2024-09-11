@@ -70,15 +70,10 @@ func (panel *Panel) GetInbounds() ([]Inbound, error) {
 		Object []Inbound `json:"obj"`
 	}
 	var insRes inboundsResponse
-	resp, err := panel.client.R().
-		EnableTrace().
+	_, err := panel.client.R().
 		SetResult(&insRes).
 		Get(INBOUNDS_PATH)
 
-	curlCmdExecuted := resp.Request.GenerateCurlCommand()
-	fmt.Println("Curl Command:\n  ", curlCmdExecuted+"\n")
-
-	fmt.Println("Err: ", err)
 	if err != nil {
 		return []Inbound{}, fmt.Errorf("error: getting inbounds failed.\nerr:%s", err)
 	}
@@ -89,7 +84,6 @@ func (panel *Panel) GetInbounds() ([]Inbound, error) {
 	}
 
 	inbounds := insRes.Object
-	fmt.Println("inbounds: ", inbounds)
 
 	for _, inbound := range inbounds {
 		json.Unmarshal([]byte(inbound.StrSettings), &inbound.Settings)
