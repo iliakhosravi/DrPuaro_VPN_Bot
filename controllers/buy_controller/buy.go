@@ -433,7 +433,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	ok, strOrderID := splitedOrderField[0], splitedOrderField[1]
 	orderID, _ := strconv.ParseUint(strOrderID, 10, 0)
 	var order models.Order
-	db.Preload("User").Preload("Pack").First(&order, orderID)
+	db.Preload("User").Preload("Pack").Find(&order, orderID)
 	order.AdminNote = form.FindField("carry_msg").Value
 	customLink := form.FindField("custom_link").Value
 	var txtMsg, orderResult string
