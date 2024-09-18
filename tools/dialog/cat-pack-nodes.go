@@ -1,0 +1,97 @@
+package dialog_tools
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/go-telegram/bot"
+	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
+	"gorm.io/gorm"
+	"techybat.org/go-vpn/models"
+)
+
+func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node {
+	packNodes := make([]dialog.Node, 0)
+
+	var categories []models.Category
+
+	models.GetActiveCategories(db, &categories)
+	catNode := dialog.Node{
+		ID:       "categories",
+		Text:     "یکی از دسته بندی های زیر را انتخاب کنید",
+		Keyboard: make([][]dialog.Button, (len(categories) + 1)),
+	}
+	catNode.Keyboard[len(categories)] = make([]dialog.Button, 1)
+	catNode.Keyboard[len(categories)][0] = dialog.Button{
+		Text:   "بازگشت",
+		NodeID: "start",
+	}
+
+	for i, category := range categories {
+		catNode.Keyboard[i] = make([]dialog.Button, 1)
+
+		strCatID := "cat_" + strconv.FormatUint(uint64(category.ID), 10)
+		catNode.Keyboard[i][0] = dialog.Button{
+			Text:   category.Name,
+			NodeID: strCatID,
+		}
+
+		var packs []models.Pack
+		models.GetActivePacksByCatID(db, &packs, category.ID)
+
+		packPeriods := models.GetPackPeriods(packs)
+		periodsNode := dialog.Node{
+			ID:       strCatID,
+			Text:     "مدت مورد نظر بسته خود را انتخاب کنید",
+			Keyboard: make([][]dialog.Button, 0),
+		}
+
+		packsNodes := make([]dialog.Node, 0)
+
+		for period := range packPeriods {
+			packNodeID := fmt.Sprintf("cat_%d_%d", category.ID, period)
+
+			row := []dialog.Button{
+				{
+					Text:   models.StringPeriod(period),
+					NodeID: packNodeID,
+				},
+			}
+			periodsNode.Keyboard = append(periodsNode.Keyboard, row)
+
+			packNode := dialog.Node{
+				ID:       packNodeID,
+				Text:     bot.EscapeMarkdown(fmt.Sprintf("لطفا بسته مورد نظر خود را انتخاب کنید.\nدسته بندی: %s\nتوضیحات: %s\nمدت: %d روزه", category.Name, category.Description, period)),
+				Keyboard: make([][]dialog.Button, 0),
+			}
+
+			for _, pack := range packPeriods[period] {
+				strPackID := strconv.FormatUint(uint64(pack.ID), 10)
+				btnRow := []dialog.Button{{
+					ID:              "pack_" + strPackID,
+					Text:            pack.String(),
+					CallbackHandler: packHandler,
+					CallbackData:    strPackID,
+				}}
+				packNode.Keyboard = append(packNode.Keyboard, btnRow)
+			}
+			backBtnRow := []dialog.Button{{
+				Text:   "بازگشت",
+				NodeID: strCatID,
+			}}
+			packNode.Keyboard = append(packNode.Keyboard, backBtnRow)
+
+			packsNodes = append(packsNodes, packNode)
+		}
+
+		backBtnRow := []dialog.Button{{
+			Text:   "بازگشت",
+			NodeID: "categories",
+		}}
+		periodsNode.Keyboard = append(periodsNode.Keyboard, backBtnRow)
+		packNodes = append(packNodes, periodsNode)
+		packNodes = append(packNodes, packsNodes...)
+	}
+
+	return append(packNodes, catNode)
+}

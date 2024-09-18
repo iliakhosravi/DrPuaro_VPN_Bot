@@ -10,6 +10,7 @@ import (
 	"techybat.org/go-vpn/controllers/admin_menu"
 	main2 "techybat.org/go-vpn/controllers/main_controller"
 	"techybat.org/go-vpn/panel"
+	"techybat.org/go-vpn/sub"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
@@ -53,6 +54,9 @@ func main() {
 	c.AddFunc("@every 5m", panel.Setup)
 
 	c.Start()
+
+	// go sub.ServeHttp(ctx)
+	go sub.ServeHttps(ctx)
 
 	b.Start(ctx)
 }
