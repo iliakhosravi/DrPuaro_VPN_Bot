@@ -14,6 +14,7 @@ import (
 	customerController "techybat.org/go-vpn/controllers/customer"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
+	dialog_tools "techybat.org/go-vpn/tools/dialog"
 )
 
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -101,7 +102,7 @@ func NewMainDialog() []dialog.Node {
 	}
 
 	dialogNodes[0].Keyboard = append(dialogNodes[0].Keyboard, CreateGuideKeyboard(db)...)
-	dialogNodes = append(dialogNodes, comp.CreateCatPackNodes(db, buy_controller.BuyController)...)
+	dialogNodes = append(dialogNodes, dialog_tools.CreateCatPackNodes(db, buy_controller.BuyController)...)
 
 	return dialogNodes
 }

@@ -7,3 +7,5 @@ main
 /.idea
 /qr
 .env.tizz
+clean_ips.txt
+notifs.json

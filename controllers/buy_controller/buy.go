@@ -22,7 +22,8 @@ import (
 func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
-	packId := update.CallbackQuery.Data
+	dataArr := strings.Split(update.CallbackQuery.Data, "_")
+	packId := dataArr[0]
 	var pack models.Pack
 	var packMsg string
 	if result := db.Where("status = ?", models.ActivePack).First(&pack, packId); result.RowsAffected == 0 {
@@ -41,7 +42,7 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 						Text: "کیف پول", NodeID: "wallet",
 					},
 					{
-						ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: packId,
+						ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
 					},
 				},
 			},
@@ -51,7 +52,7 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			Text: "آیا از پرداخت با کیف پول خود اطمینان دارید؟",
 			Keyboard: [][]dialog.Button{
 				{
-					{ID: "wallet-btn", Text: "بله ✅", CallbackHandler: WalletBuyController, CallbackData: packId},
+					{ID: "wallet-btn", Text: "بله ✅", CallbackHandler: WalletBuyController, CallbackData: update.CallbackQuery.Data},
 					{
 						Text: "خیر ❌", NodeID: "buy-options",
 					},
@@ -76,9 +77,14 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	user := ctx.Value(auth.UserKey).(models.User)
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
-	packId, _ := strconv.Atoi(update.CallbackQuery.Data)
-	var pack models.Pack
+	dataArr := strings.Split(update.CallbackQuery.Data, "_")
+	packId := dataArr[0]
+	var configID string
+	if len(dataArr) > 1 {
+		configID = dataArr[1]
+	}
 
+	var pack models.Pack
 	db.First(&pack, packId)
 
 	if user.Charge < uint64(pack.Price) {
@@ -89,8 +95,14 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		return
 	}
 
+	var order *models.Order
+	var err error
 	var txtMsg string
-	order, err := user.BuyPackByCharge(db, &pack)
+	if len(dataArr) > 1 {
+		order, err = user.RevivePackByCharge(db, &pack, configID)
+	} else {
+		order, err = user.BuyPackByCharge(db, &pack)
+	}
 	if err != nil {
 		txtMsg = "خطایی پیش آمده"
 	} else {
@@ -107,13 +119,14 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 		MessageID: update.CallbackQuery.Message.Message.ID,
 	})
 
-	msgTool.SendShortLink(ctx, b, chatID, *order)
+	msgTool.SendSubLink(ctx, b, chatID, *order)
 
 }
 
 func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	user := ctx.Value(auth.UserKey).(models.User)
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
 
 	var card models.Card = models.GetActiveCard(db)
 	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله خرید شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین کانفیگ به صورت خودکار برای شما ارسال خواهد شد."
@@ -123,13 +136,35 @@ func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 		txtMsg = "خطایی پیش آمده"
 	}
 
-	packId, _ := strconv.Atoi(update.CallbackQuery.Data)
-	var pack models.Pack
-	if result := db.First(&pack, packId); result.RowsAffected == 0 {
-		txtMsg = "خطایی پیش آمده"
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+
+	var err bool = false
+
+	dataArr := strings.Split(update.CallbackQuery.Data, "_")
+	packId := dataArr[0]
+	var config models.Config
+	if len(dataArr) > 1 {
+		configID := dataArr[1]
+		if res := db.Find(&config, configID); res.Error != nil {
+			err = true
+		}
 	}
 
-	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	var pack models.Pack
+	if result := db.First(&pack, packId); result.RowsAffected == 0 {
+		err = true
+	}
+
+	if err {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			Text:   "خطایی پیش آمده",
+			ChatID: chatID,
+		})
+		return
+	}
 
 	fields := []form.Field{
 		{
@@ -140,13 +175,14 @@ func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			ParseMode:     tmodels.ParseModeHTML,
 		},
 	}
-	form := form.CreateForm("انصراف از خرید", fields, chatID, user.TelID, passPack(onRetrieveReceipt, pack), onCancelRecipt, nil)
+	form := form.CreateForm("انصراف از خرید", fields, chatID, user.TelID, receiptMiddleware(onRetrieveReceipt, pack, config), onCancelRecipt, nil)
 	form.Show(ctx, b, update)
+}
 
-	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
-		ChatID:    chatID,
-		MessageID: update.CallbackQuery.Message.Message.ID,
-	})
+func receiptMiddleware(next func(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack, config models.Config), pack models.Pack, config models.Config) bot.HandlerFunc {
+	return func(ctx context.Context, bot *bot.Bot, update *tmodels.Update) {
+		next(ctx, bot, update, pack, config)
+	}
 }
 
 func onCardReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
@@ -261,14 +297,20 @@ func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, fo
 	return ok, fmt.Errorf(strErr)
 }
 
-func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
+func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack, config models.Config) {
 	db := database.GetDB()
 
 	user := ctx.Value(auth.UserKey).(models.User)
 	form := ctx.Value(form.FORM_KEY).(*form.Form)
 
 	msgID, _ := strconv.ParseInt(form.FindField("receipt").Value, 0, 0)
-	order, err := user.BuyPackByCard(db, &pack, int(msgID))
+	var order *models.Order
+	var err error
+	if (config != models.Config{}) {
+		order, err = user.RevivePackByCard(db, &pack, int(msgID), config.ID)
+	} else {
+		order, err = user.BuyPackByCard(db, &pack, int(msgID))
+	}
 	receipt := order.GetReceipt(db)
 
 	_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
@@ -391,7 +433,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	ok, strOrderID := splitedOrderField[0], splitedOrderField[1]
 	orderID, _ := strconv.ParseUint(strOrderID, 10, 0)
 	var order models.Order
-	db.Preload("User").Preload("Pack").First(&order, orderID)
+	db.Preload("User").Preload("Pack").Find(&order, orderID)
 	order.AdminNote = form.FindField("carry_msg").Value
 	customLink := form.FindField("custom_link").Value
 	var txtMsg, orderResult string
@@ -427,7 +469,7 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		Text:   txtMsg,
 	})
 
-	msgTool.SendShortLink(ctx, b, form.ChatID, order)
+	msgTool.SendSubLink(ctx, b, order.User.TelID, order)
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/go-telegram/bot"
+	"github.com/google/uuid"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -28,6 +31,12 @@ func (config *Config) Migrate(db *gorm.DB) {
 	db.AutoMigrate(&Config{})
 }
 
+func (config *Config) Title(db *gorm.DB) string {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	return fmt.Sprintf("%s | %s | %s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL"), c.Order.Pack.Name())
+}
+
 func DateValidator(value string) (bool, string) {
 	_, err := time.Parse("2006-01-02", value)
 
@@ -45,7 +54,7 @@ func (config *Config) ShortLink(db *gorm.DB) (string, string) {
 	shortLink := c.CustomLink
 	if c.Order.Pack.Type == SanaeiPack {
 		client, _ := c.GetClient()
-		shortLinks, _ := panel.GetPanel().ShortLinksConfig(fmt.Sprintf("%s | %s", os.Getenv("TG_CHANNEL"), c.Order.Pack.Name()), client)
+		shortLinks, _ := panel.GetPanel().ShortLinksConfig(c.Title(db), client)
 		shortLink = shortLinks[0]
 	}
 	qrPath := fmt.Sprintf("./%s/%d.jpg", os.Getenv("QR_PATH"), c.ID)
@@ -78,7 +87,7 @@ func (config *Config) Link(db *gorm.DB) string {
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {
 		client, _ := c.GetClient()
-		link, _ := panel.GetPanel().SubLink(client)
+		link, _ := panel.GetPanel().PanelSubLink(client)
 		return link
 	}
 
@@ -112,7 +121,109 @@ func (config *Config) EndDate(db *gorm.DB) (ptime.Time, error) {
 	return ptime.New(c.StartDate.AddDate(0, 0, c.Order.Pack.Period)), nil
 }
 
-func (config *Config) RemainedTraffic(db *gorm.DB) (float32, error) {
+func (config *Config) RemainedDateStr(db *gorm.DB) (string, error) {
+	endDate, err := config.EndDate(db)
+	if err != nil {
+		return "", nil
+	}
+
+	duration := time.Until(endDate.Time())
+	hours := int(duration.Hours())
+	days := hours / 24
+	hours = hours % 24
+	mins := int(duration.Minutes()) % 60
+
+	result := ""
+	if days > 0 {
+		result += fmt.Sprintf("%dD ", days)
+	}
+
+	if hours > 0 {
+		result += fmt.Sprintf("%dH ", hours)
+	}
+
+	if mins > 0 {
+		result += fmt.Sprintf("%dM", mins)
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
+func (config *Config) DepleteSanaei(db *gorm.DB, o Order) error {
+	p := panel.GetPanel()
+	gb, mb := o.Pack.TrafficGbMb()
+
+	if config.Email == "" {
+		config.Email = fmt.Sprintf("U%d_O%d", o.UserID, o.ID)
+	}
+
+	if config.UUID == "" {
+		config.UUID = uuid.NewString()
+	}
+
+	clientForm := panel.ClientForm{
+		ID:         config.UUID,
+		Email:      config.Email,
+		TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
+		ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
+		Enable:     false,
+		TgID:       fmt.Sprint(o.User.TelID),
+		SubID:      config.SubID,
+	}
+
+	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
+		return err
+	}
+
+	config.UUID = clientForm.ID
+	res := db.Save(config)
+	return res.Error
+}
+
+func (config *Config) SetupSanaei(db *gorm.DB, o Order) error {
+	p := panel.GetPanel()
+	gb, mb := o.Pack.TrafficGbMb()
+	if config.SubID == "" {
+		config.SubID = bot.RandomString(16)
+	}
+
+	if config.UUID == "" {
+		config.UUID = uuid.NewString()
+	}
+
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	if config.Email == "" {
+		config.Email = fmt.Sprintf("U%d_C%d", o.UserID, config.ID)
+	}
+
+	clientForm := panel.ClientForm{
+		ID:         config.UUID,
+		Email:      config.Email,
+		TotalGB:    int64(gb*panel.ONE_GB + mb*panel.ONE_MB),
+		ExpiryTime: config.StartDate.AddDate(0, 0, o.Pack.Period).UnixMilli(),
+		Enable:     true,
+		TgID:       fmt.Sprint(o.User.TelID),
+		SubID:      config.SubID,
+	}
+
+	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
+		return err
+	}
+	if _, err := p.ResetClientStats(o.Pack.InboundID, clientForm.Email); err != nil {
+		return err
+	}
+
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	return nil
+}
+
+func (config *Config) RemainedTraffic(db *gorm.DB) (int, error) {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {
