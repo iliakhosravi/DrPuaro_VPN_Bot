@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
+	"techybat.org/go-vpn/vars"
 )
 
 func (panel *Panel) GetInboundClient(client *Client) (*InboundClient, error) {
@@ -80,7 +80,7 @@ func (panel *Panel) SubLink(client Client) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", os.Getenv("SUB_URL"), os.Getenv("SUB_PORT"), os.Getenv("SUB_PATH"), inboundClient.SubID))
+	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", vars.Get("SUB_URL"), vars.Get("SUB_PORT"), vars.Get("SUB_PATH"), inboundClient.SubID))
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +88,7 @@ func (panel *Panel) SubLink(client Client) (string, error) {
 }
 
 func PanelSubLinkFromSubID(subID string) (string, error) {
-	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", os.Getenv("PANEL_SUB_URL"), os.Getenv("PANEL_SUB_PORT"), os.Getenv("PANEL_SUB_PATH"), subID))
+	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_SUB_PATH"), subID))
 	if err != nil {
 		return "", err
 	}

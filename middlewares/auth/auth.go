@@ -3,13 +3,13 @@ package auth
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/vars"
 )
 
 type Key int
@@ -32,7 +32,7 @@ func TrustedMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 			tuser = &tmodels.User{}
 		}
 		user.CreateOrFindUserByTelegram(database.GetDB(), tuser)
-		if os.Getenv("ONLY_TRUSTED_USERS") == "true" && user.Type == models.NoramlUser {
+		if vars.Get("ONLY_TRUSTED_USERS") == "true" && user.Type == models.NoramlUser {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: user.TelID,
 				Text:   "عدم دسترسی کاربر",
@@ -64,7 +64,7 @@ func UserMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 func AdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		user := ctx.Value(UserKey).(models.User)
-		if strings.EqualFold(os.Getenv("DEFAULT_ADMIN_USERNAME"), user.Username) {
+		if strings.EqualFold(vars.Get("DEFAULT_ADMIN_USERNAME"), user.Username) {
 			if err := user.MakeAdmin(database.GetDB()); err != nil {
 				fmt.Printf("Error: Cannot set default admin. Details:%v\n", err)
 				b.SendMessage(ctx, &bot.SendMessageParams{

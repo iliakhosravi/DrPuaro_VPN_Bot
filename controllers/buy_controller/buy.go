@@ -3,7 +3,6 @@ package buy_controller
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
 	msgTool "techybat.org/go-vpn/tools/message"
+	"techybat.org/go-vpn/vars"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -187,7 +187,7 @@ func receiptMiddleware(next func(ctx context.Context, b *bot.Bot, update *tmodel
 
 func onCardReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
 	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
+		ChatID:     vars.Get("STORAGE_CHANNEL_ID"),
 		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
 		MessageID:  update.Message.ID,
 	})
@@ -262,7 +262,7 @@ func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		txtMsg += fmt.Sprintf("%d", receipt.ID)
 
 		_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+			ChatID: vars.Get("STORAGE_CHANNEL_ID"),
 			Text:   fmt.Sprintf("#CO%d\n#CR%d", chargeOrder.ID, receipt.ID),
 		})
 
@@ -283,7 +283,7 @@ func onCancelCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {}
 
 func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
 	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-		ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
+		ChatID:     vars.Get("STORAGE_CHANNEL_ID"),
 		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
 		MessageID:  update.Message.ID,
 	})
@@ -314,7 +314,7 @@ func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, 
 	receipt := order.GetReceipt(db)
 
 	_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		ChatID: vars.Get("STORAGE_CHANNEL_ID"),
 		Text:   fmt.Sprintf("#O%d\n#R%d", order.ID, receipt.ID),
 	})
 
@@ -364,7 +364,7 @@ func onWatchOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	if order.Type != models.PendLinkOrder {
 		_, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
 			ChatID:     chatID,
-			FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+			FromChatID: vars.Get("STORAGE_CHANNEL_ID"),
 			MessageID:  order.GetReceipt(db).MessageID,
 		})
 

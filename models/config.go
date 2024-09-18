@@ -3,7 +3,6 @@ package models
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/tools/qr"
+	"techybat.org/go-vpn/vars"
 )
 
 type Config struct {
@@ -34,7 +34,7 @@ func (config *Config) Migrate(db *gorm.DB) {
 func (config *Config) Title(db *gorm.DB) string {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
-	return fmt.Sprintf("%s | %s | %s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL"), c.Order.Pack.Name())
+	return fmt.Sprintf("%s | %s | %s", vars.Get("BRAND_NAME"), vars.Get("TG_CHANNEL"), c.Order.Pack.Name())
 }
 
 func DateValidator(value string) (bool, string) {
@@ -57,8 +57,8 @@ func (config *Config) ShortLink(db *gorm.DB) (string, string) {
 		shortLinks, _ := panel.GetPanel().ShortLinksConfig(c.Title(db), client)
 		shortLink = shortLinks[0]
 	}
-	qrPath := fmt.Sprintf("./%s/%d.jpg", os.Getenv("QR_PATH"), c.ID)
-	err := qr.GenerateQRLogo(shortLink, os.Getenv("LOGO_PATH"), qrPath)
+	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
+	err := qr.GenerateQRLogo(shortLink, vars.Get("LOGO_PATH"), qrPath)
 	if err != nil {
 		fmt.Println("Unable to create QR Logo. err: ", err)
 	}
@@ -74,8 +74,8 @@ func (config *Config) SubLink(db *gorm.DB) (string, string) {
 		client, _ := c.GetClient()
 		subLink, _ = panel.GetPanel().SubLink(client)
 	}
-	qrPath := fmt.Sprintf("./%s/%d.jpg", os.Getenv("QR_PATH"), c.ID)
-	err := qr.GenerateQRLogo(subLink, os.Getenv("LOGO_PATH"), qrPath)
+	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
+	err := qr.GenerateQRLogo(subLink, vars.Get("LOGO_PATH"), qrPath)
 	if err != nil {
 		fmt.Println("Unable to create QR Logo. err: ", err)
 	}
@@ -98,7 +98,7 @@ func (config *Config) JSONLink(db *gorm.DB) string {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {
-		link, _ := url.JoinPath(fmt.Sprintf("http://%s:%s/%s/%s", os.Getenv("PANEL_SUB_URL"), os.Getenv("PANEL_SUB_PORT"), os.Getenv("PANEL_JSON_SUB_PATH"), c.SubID))
+		link, _ := url.JoinPath(fmt.Sprintf("http://%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_JSON_SUB_PATH"), c.SubID))
 		return link
 	}
 

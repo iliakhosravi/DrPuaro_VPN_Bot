@@ -1,10 +1,10 @@
 package panel
 
 import (
-	"os"
 	"sync"
 
 	"github.com/go-resty/resty/v2"
+	"techybat.org/go-vpn/vars"
 )
 
 type BasicResponse struct {
@@ -30,8 +30,8 @@ func GetPanel() *Panel {
 }
 
 func Setup() {
-	username, password := os.Getenv("PANEL_USERNAME"), os.Getenv("PANEL_PASSWORD")
-	url := os.Getenv("PANEL_URL")
+	username, password := vars.Get("PANEL_USERNAME"), vars.Get("PANEL_PASSWORD")
+	url := vars.Get("PANEL_URL")
 	panel = &Panel{
 		client: resty.New(),
 	}

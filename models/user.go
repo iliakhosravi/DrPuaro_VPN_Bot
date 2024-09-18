@@ -2,11 +2,11 @@ package models
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	tmodels "github.com/go-telegram/bot/models"
 	"gorm.io/gorm"
+	"techybat.org/go-vpn/vars"
 	"techybat.org/go-vpn/widgets/form"
 )
 
@@ -39,7 +39,7 @@ func (user *User) CreateOrFindUserByTelegram(db *gorm.DB, tuser *tmodels.User) e
 	user.Username = tuser.Username
 	user.TelID = tuser.ID
 	if res.RowsAffected == 0 {
-		user.Charge, _ = strconv.ParseUint(os.Getenv("WALLET_INIT_BALANCE"), 0, 0)
+		user.Charge, _ = strconv.ParseUint(vars.Get("WALLET_INIT_BALANCE"), 0, 0)
 	}
 
 	if result := db.Save(user); result.RowsAffected == 0 {
