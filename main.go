@@ -49,9 +49,9 @@ func main() {
 
 	c := cron.New()
 
-	// c.AddFunc("@every 30s", func() { configCrons.NotifyAll(ctx, b) })
-	c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
-	c.AddFunc("@every 5m", panel.Setup)
+	c.AddFunc("@every 5m", func() { configCrons.NotifyAll(ctx, b) })
+	// c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
+	c.AddFunc("@every 30m", panel.Setup)
 
 	c.Start()
 
