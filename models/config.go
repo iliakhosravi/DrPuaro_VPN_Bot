@@ -196,7 +196,7 @@ func (config *Config) SetupSanaei(db *gorm.DB, o Order) error {
 	}
 
 	if config.Email == "" {
-		config.Email = fmt.Sprintf("U%d_C%d", o.UserID, config.ID)
+		config.Email = fmt.Sprintf("u%d_c%d", o.UserID, config.ID)
 	}
 
 	clientForm := panel.ClientForm{
