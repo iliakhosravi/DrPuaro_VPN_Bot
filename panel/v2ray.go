@@ -17,7 +17,7 @@ func (panel *Panel) GetInboundClient(client *Client) (*InboundClient, error) {
 
 // shortLinkConfig translates the parsed V2Ray configuration into a short link.
 func (panel *Panel) ShortLinksConfig(title string, client Client) ([]string, error) {
-	subLink, err := panel.SubLink(client)
+	subLink, err := panel.PanelSubLink(client)
 	if err != nil {
 		fmt.Println(err)
 		return []string{}, err
