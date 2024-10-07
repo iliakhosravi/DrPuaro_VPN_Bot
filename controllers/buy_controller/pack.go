@@ -26,7 +26,7 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	fields := []form.Field{
 		{
 			Name:        "traffic",
-			MessageText: "میزان حجم بسته بر حسب گیگ چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
+			MessageText: "میزان حجم بسته بر حسب مگابایت چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
 			Validator:   models.PackValidator("traffic"),
 		},
 		{
