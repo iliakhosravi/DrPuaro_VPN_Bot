@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -13,6 +14,7 @@ import (
 	"techybat.org/go-vpn/vars"
 
 	"github.com/go-telegram/bot"
+	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 	configCrons "techybat.org/go-vpn/crons/config"
 	"techybat.org/go-vpn/database"
@@ -20,11 +22,11 @@ import (
 )
 
 func main() {
-	// err := godotenv.Load(".env")
+	err := godotenv.Load(".env")
 
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	database.Setup()
 

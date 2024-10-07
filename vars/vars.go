@@ -1,6 +1,9 @@
 package vars
 
-import "sync"
+import (
+	"os"
+	"sync"
+)
 
 var (
 	v     map[string]string
@@ -49,5 +52,8 @@ func Setup() {
 
 func Get(name string) string {
 	Setup()
+	if os.Getenv("USE_ENV_FILE") == "true" {
+		return os.Getenv(name)
+	}
 	return v[name]
 }
