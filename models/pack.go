@@ -68,8 +68,10 @@ func (pack Pack) String() string {
 }
 
 func (pack Pack) TrafficString() string {
-	gb := pack.Traffic / 1024
-	mb := pack.Traffic % 1024
+	if pack.Traffic == 0 {
+		return "♾"
+	}
+	gb, mb := pack.TrafficGbMb()
 	result := ""
 	if gb > 0 {
 		result += fmt.Sprintf("%d گیگابایت", gb)
@@ -86,6 +88,9 @@ func (pack Pack) TrafficString() string {
 }
 
 func (pack Pack) TrafficName() string {
+	if pack.Traffic == 0 {
+		return "♾"
+	}
 	gb, mb := pack.TrafficGbMb()
 	result := ""
 	if gb > 0 {
