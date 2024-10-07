@@ -25,6 +25,12 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 
 	fields := []form.Field{
 		{
+			Name:        "title",
+			MessageText: "عنوان بسته را وارد نمایید",
+			IsSkippable: true,
+			Validator:   models.PackValidator("title"),
+		},
+		{
 			Name:        "traffic",
 			MessageText: "میزان حجم بسته بر حسب مگابایت چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
 			Validator:   models.PackValidator("traffic"),
@@ -57,6 +63,8 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
 	form := form.CreateForm("انصراف", fields, chatID, userID, packSubmitController, onCancelPack, nil)
+	form.SkipButtonText = "رد کردن"
+	form.SkipMessageText = "از ورود مقدار برای این فیلد صرف نظر شد"
 
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
@@ -75,6 +83,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
 	packType := models.PackType(form.FindField("type").Value)
+	title := form.FindField("title").Value
 
 	pack := models.Pack{
 		Traffic:    traffic,
@@ -82,6 +91,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		Price:      price,
 		CategoryID: uint(categoryID),
 		Type:       packType,
+		Title:      title,
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -296,6 +306,13 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 	fields := []form.Field{
 		{
+			Name:        "title",
+			MessageText: fmt.Sprintf("عنوان بسته چه باشد؟\nعنوان فعلی: %s", pack.Title),
+			Validator:   models.PackValidator("title"),
+			Value:       fmt.Sprintf(pack.Title),
+			IsSkippable: true,
+		},
+		{
 			Name:        "traffic",
 			MessageText: fmt.Sprintf("میزان حجم بسته بر حسب مگابایت چقدر باشد؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.\nمقدار فعلی:%v", pack.Traffic),
 			Validator:   models.PackValidator("traffic"),
@@ -390,6 +407,7 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	pack.Period = period
 	pack.Price = price
 	pack.Type = models.PackType(form.FindField("type").Value)
+	pack.Title = form.FindField("title").Value
 
 	if err == nil {
 		pack.CategoryID = uint(categoryID)

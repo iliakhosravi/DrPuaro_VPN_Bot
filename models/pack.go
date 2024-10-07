@@ -25,6 +25,7 @@ const (
 
 type Pack struct {
 	BaseModel
+	Title      string     `json:"title"`
 	Traffic    int        `json:"traffic"` //Gigabytes
 	Period     int        `json:"period"`  //Days
 	Price      int        `json:"price"`   //Toman
@@ -44,10 +45,16 @@ func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
 }
 
 func (pack Pack) Name() string {
+	if pack.Title != "" {
+		return pack.Title
+	}
 	return fmt.Sprintf("%s %dD", pack.TrafficName(), pack.Period)
 }
 
 func (pack Pack) String() string {
+	if pack.Title != "" {
+		return pack.Title
+	}
 	return fmt.Sprintf("%s | %s | %d تومان", pack.TrafficString(), StringPeriod(pack.Period), pack.Price)
 }
 
@@ -97,7 +104,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("دسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Category.Name, pack.TrafficName(), pack.Period, pack.Price, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.Price, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -126,6 +133,10 @@ func PackValidator(fieldName string) form.Validator {
 		case "type":
 			if value != string(CustomPack) && value != string(SanaeiPack) {
 				err = fmt.Errorf("no such pack type")
+			}
+		case "title":
+			if value != "" && len(value) <= 3 && len(value) >= 128 {
+				err = fmt.Errorf("Title must be between 3 to 128 characters")
 			}
 		default:
 			_, err = strconv.Atoi(value)
