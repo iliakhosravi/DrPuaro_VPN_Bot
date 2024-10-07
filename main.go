@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 
@@ -11,9 +10,9 @@ import (
 	main2 "techybat.org/go-vpn/controllers/main_controller"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/sub"
+	"techybat.org/go-vpn/vars"
 
 	"github.com/go-telegram/bot"
-	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 	configCrons "techybat.org/go-vpn/crons/config"
 	"techybat.org/go-vpn/database"
@@ -21,18 +20,18 @@ import (
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	// err := godotenv.Load(".env")
 
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 
 	database.Setup()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	telegramBotToken := vars.Get("TELEGRAM_BOT_TOKEN")
 
 	opts := []bot.Option{
 		bot.WithMiddlewares(auth.UserMiddleware, auth.TrustedMiddleware),

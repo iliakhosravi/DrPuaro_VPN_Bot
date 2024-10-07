@@ -14,6 +14,7 @@ import (
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
+	"techybat.org/go-vpn/vars"
 )
 
 type Vless struct {
@@ -117,8 +118,8 @@ func extractIPs(lines []string) []Vless {
 }
 
 func ServeHttp(ctx context.Context) {
-	path := os.Getenv("SUB_PATH")
-	port := os.Getenv("SUB_PORT")
+	path := vars.Get("SUB_PATH")
+	port := vars.Get("SUB_PORT")
 	r := mux.NewRouter()
 	r.HandleFunc(fmt.Sprintf("/%s/{id}", path), handler)
 
@@ -150,16 +151,16 @@ func ServeHttp(ctx context.Context) {
 }
 
 func ServeHttps(ctx context.Context) {
-	path := os.Getenv("SUB_PATH")
-	port := os.Getenv("SUB_PORT")
+	path := vars.Get("SUB_PATH")
+	port := vars.Get("SUB_PORT")
 	r := mux.NewRouter()
 	r.HandleFunc(fmt.Sprintf("/%s/{id}", path), handler)
 
 	fmt.Printf("Sub Server is running on port %s with TLS...\n", port)
 
 	// Path to your SSL certificate and key files
-	certFile := os.Getenv("SUB_CERT_FILE")
-	keyFile := os.Getenv("SUB_CERT_KEY_FILE")
+	certFile := vars.Get("SUB_CERT_FILE")
+	keyFile := vars.Get("SUB_CERT_KEY_FILE")
 
 	srv := &http.Server{
 		Addr: "0.0.0.0:" + port,

@@ -3,7 +3,6 @@ package main_controller
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
@@ -15,6 +14,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 	dialog_tools "techybat.org/go-vpn/tools/dialog"
+	"techybat.org/go-vpn/vars"
 )
 
 func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -25,11 +25,11 @@ func MainController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 }
 
 func ShowMainDialog(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
-	if os.Getenv("MAIN_KB_INLINE") != "true" {
+	if vars.Get("MAIN_KB_INLINE") != "true" {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 
 			ChatID:      update.Message.Chat.ID,
-			Text:        fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			Text:        fmt.Sprintf("%s\n\n%s", vars.Get("BRAND_NAME"), vars.Get("TG_CHANNEL")),
 			ReplyMarkup: comp.GetMenuKeyboard(b),
 		})
 	} else {
@@ -69,7 +69,7 @@ func NewMainDialog() []dialog.Node {
 	dialogNodes := []dialog.Node{
 		{
 			ID:   "start",
-			Text: fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			Text: fmt.Sprintf("%s\n\n%s", vars.Get("BRAND_NAME"), vars.Get("TG_CHANNEL")),
 			Keyboard: [][]dialog.Button{
 				{
 					{Text: "خرید بسته", NodeID: "categories"},

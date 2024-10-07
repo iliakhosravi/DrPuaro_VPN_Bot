@@ -2,10 +2,10 @@ package models
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"gorm.io/gorm"
+	"techybat.org/go-vpn/vars"
 	"techybat.org/go-vpn/widgets/form"
 )
 
@@ -93,7 +93,7 @@ func (pack Pack) TrafficGbMb() (int, int) {
 }
 
 func (pack Pack) ConfigDesc() string {
-	return fmt.Sprintf("%s | %s", os.Getenv("TELEGRAM_CHANNEL"), pack.Name())
+	return fmt.Sprintf("%s | %s", vars.Get("TELEGRAM_CHANNEL"), pack.Name())
 }
 
 func (pack Pack) FullStr() string {

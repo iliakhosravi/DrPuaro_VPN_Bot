@@ -3,7 +3,6 @@ package admin_controller
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -13,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/vars"
 	"techybat.org/go-vpn/widgets/buttonpage"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -35,7 +35,7 @@ func ChargeOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update)
 
 	b.ForwardMessage(ctx, &bot.ForwardMessageParams{
 		ChatID:     chatID,
-		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		FromChatID: vars.Get("STORAGE_CHANNEL_ID"),
 		MessageID:  order.Receipt(db).MessageID,
 	})
 

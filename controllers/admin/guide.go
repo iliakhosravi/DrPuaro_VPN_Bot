@@ -3,10 +3,10 @@ package admin_controller
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 
 	comp "techybat.org/go-vpn/components"
+	"techybat.org/go-vpn/vars"
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
@@ -150,7 +150,7 @@ func onInputValue(ctx context.Context, b *bot.Bot, update *tmodels.Update, form 
 	case m.FWD_MSG_GUIDE:
 		msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
 			FromChatID: fmt.Sprintf("%d", form.ChatID),
-			ChatID:     os.Getenv("STORAGE_CHANNEL_ID"),
+			ChatID:     vars.Get("STORAGE_CHANNEL_ID"),
 			MessageID:  update.Message.ID,
 		})
 		if err != nil {

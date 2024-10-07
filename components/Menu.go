@@ -3,7 +3,6 @@ package components
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 
@@ -16,6 +15,7 @@ import (
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/models"
 	dialog_tools "techybat.org/go-vpn/tools/dialog"
+	"techybat.org/go-vpn/vars"
 )
 
 var (
@@ -88,12 +88,12 @@ func handleGuideKB(ctx context.Context, b *bot.Bot, update *tmodels.Update, kb *
 func ForwardGuideHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	msgID, _ := strconv.Atoi(update.CallbackQuery.Data)
 	b.CopyMessage(ctx, &bot.CopyMessageParams{
-		FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+		FromChatID: vars.Get("STORAGE_CHANNEL_ID"),
 		ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
 		MessageID:  msgID,
 	})
 	// b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-	// 	FromChatID: os.Getenv("STORAGE_CHANNEL_ID"),
+	// 	FromChatID: vars.Get("STORAGE_CHANNEL_ID"),
 	// 	ChatID:     update.CallbackQuery.Message.Message.Chat.ID,
 	// 	MessageID:  msgID,
 	// })
@@ -127,7 +127,7 @@ func NewMainNodes() []dialog.Node {
 	dialogNodes := []dialog.Node{
 		{
 			ID:       "start",
-			Text:     fmt.Sprintf("%s\n\n%s", os.Getenv("BRAND_NAME"), os.Getenv("TG_CHANNEL")),
+			Text:     fmt.Sprintf("%s\n\n%s", vars.Get("BRAND_NAME"), vars.Get("TG_CHANNEL")),
 			Keyboard: nil,
 		},
 

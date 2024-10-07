@@ -3,13 +3,13 @@ package database
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/vars"
 )
 
 var (
@@ -25,11 +25,11 @@ func Setup() {
 func GetDB() *gorm.DB {
 	dbOnce.Do(func() {
 		// refer https://github.com/go-sql-driver/mysql#dsn-data-source-name for details
-		user := os.Getenv("MYSQL_USER")
-		pass := os.Getenv("MYSQL_PASS")
-		host := os.Getenv("MYSQL_HOST")
-		port := os.Getenv("MYSQL_PORT")
-		dbname := os.Getenv("MYSQL_DB")
+		user := vars.Get("MYSQL_USER")
+		pass := vars.Get("MYSQL_PASS")
+		host := vars.Get("MYSQL_HOST")
+		port := vars.Get("MYSQL_PORT")
+		dbname := vars.Get("MYSQL_DB")
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port, dbname)
 
 		dbInstance, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
