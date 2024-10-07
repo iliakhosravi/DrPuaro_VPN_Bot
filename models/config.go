@@ -169,6 +169,7 @@ func (config *Config) DepleteSanaei(db *gorm.DB, o Order) error {
 		Enable:     false,
 		TgID:       fmt.Sprint(o.User.TelID),
 		SubID:      config.SubID,
+		LimitIP:    int(o.Pack.LimitIP),
 	}
 
 	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
@@ -207,6 +208,7 @@ func (config *Config) SetupSanaei(db *gorm.DB, o Order) error {
 		Enable:     true,
 		TgID:       fmt.Sprint(o.User.TelID),
 		SubID:      config.SubID,
+		LimitIP:    int(o.Pack.LimitIP),
 	}
 
 	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {

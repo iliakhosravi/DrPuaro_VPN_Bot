@@ -34,6 +34,7 @@ type Pack struct {
 	Status     PackStatus `json:"status" gorm:"default:undefined"`
 	InboundID  int        `json:"inbound_id" gorm:"default:-1"`
 	Type       PackType   `json:"type" gorm:"default:custom"`
+	LimitIP    uint       `json:"limit_ip" gorm:"default:0"`
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {
@@ -48,14 +49,22 @@ func (pack Pack) Name() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s %dD", pack.TrafficName(), pack.Period)
+	limit := fmt.Sprintf("%s Users", pack.UserLimitStr())
+	return fmt.Sprintf("%s %dD %s", pack.TrafficName(), pack.Period, limit)
+}
+
+func (pack Pack) UserLimitStr() string {
+	if pack.LimitIP == 0 {
+		return "♾"
+	}
+	return fmt.Sprintf("%d", pack.LimitIP)
 }
 
 func (pack Pack) String() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s | %s | %d تومان", pack.TrafficString(), StringPeriod(pack.Period), pack.Price)
+	return fmt.Sprintf("%s | %s | %d تومان | %s کاربره", pack.TrafficString(), StringPeriod(pack.Period), pack.Price, pack.UserLimitStr())
 }
 
 func (pack Pack) TrafficString() string {
@@ -104,7 +113,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.Price, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.Price, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -138,6 +147,8 @@ func PackValidator(fieldName string) form.Validator {
 			if value != "" && len(value) <= 3 && len(value) >= 128 {
 				err = fmt.Errorf("Title must be between 3 to 128 characters")
 			}
+		case "limitIP":
+			_, err = strconv.ParseUint(value, 10, 0)
 		default:
 			_, err = strconv.Atoi(value)
 		}

@@ -29,7 +29,7 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	if result := db.Where("status = ?", models.ActivePack).First(&pack, packId); result.RowsAffected == 0 {
 		packMsg = "این بسته در دسترس نمی باشد"
 	} else {
-		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید:", pack.String())
+		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید.\nمشخصات:%s", pack.String(), pack.String())
 	}
 
 	nodes := []dialog.Node{

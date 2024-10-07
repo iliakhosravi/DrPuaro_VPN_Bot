@@ -41,6 +41,12 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Validator:   models.PackValidator("period"),
 		},
 		{
+			Name:        "limitIP",
+			MessageText: "بسته چند کاربره باشد؟(درصورتی که محدودیت کاربر ندارید می توانید این فیلد را رد کنید یا صفر بگذارید)",
+			IsSkippable: true,
+			Validator:   models.PackValidator("limitIP"),
+		},
+		{
 			Name:        "price",
 			MessageText: "قیمت بسته برحسب تومان چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
 			Validator:   models.PackValidator("price"),
@@ -81,6 +87,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	traffic, _ := strconv.Atoi(form.FindField("traffic").Value)
 	period, _ := strconv.Atoi(form.FindField("period").Value)
 	price, _ := strconv.Atoi(form.FindField("price").Value)
+	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
 	packType := models.PackType(form.FindField("type").Value)
 	title := form.FindField("title").Value
@@ -92,6 +99,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		CategoryID: uint(categoryID),
 		Type:       packType,
 		Title:      title,
+		LimitIP:    uint(limitIP),
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -327,6 +335,13 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			Value:       fmt.Sprint(pack.Period),
 		},
 		{
+			Name:        "limitIP",
+			MessageText: fmt.Sprintf("بسته چند کاربره باشد؟(درصورتی که محدودیت کاربر ندارید این فیلد را صفر بگذارید)\nمقدار فعلی: %d", pack.LimitIP),
+			Validator:   models.PackValidator("limitIP"),
+			IsSkippable: true,
+			Value:       fmt.Sprint(pack.LimitIP),
+		},
+		{
 			Name:        "price",
 			MessageText: fmt.Sprintf("قیمت بسته برحسب تومان چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.\nمقدار فعلی:%v", pack.Price),
 			Validator:   models.PackValidator("price"),
@@ -402,12 +417,14 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	period, _ := strconv.Atoi(form.FindField("period").Value)
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	categoryID, err := strconv.ParseUint(form.FindField("category").Value, 10, 0)
+	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
 
 	pack.Traffic = traffic
 	pack.Period = period
 	pack.Price = price
 	pack.Type = models.PackType(form.FindField("type").Value)
 	pack.Title = form.FindField("title").Value
+	pack.LimitIP = uint(limitIP)
 
 	if err == nil {
 		pack.CategoryID = uint(categoryID)
