@@ -42,6 +42,7 @@ func Setup() {
 			"WALLET_INIT_BALANCE": "10000",
 			"LOGO_PATH":           "vpn.png",
 			"QR_PATH":             "qr",
+			"env":                 "prod",
 		}
 	})
 }
