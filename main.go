@@ -54,8 +54,11 @@ func main() {
 
 	c.Start()
 
-	// go sub.ServeHttp(ctx)
-	go sub.ServeHttps(ctx)
+	if vars.Get("env") == "prod" {
+		go sub.ServeHttps(ctx)
+	} else {
+		go sub.ServeHttp(ctx)
+	}
 
 	b.Start(ctx)
 }
