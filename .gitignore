@@ -10,3 +10,4 @@ main
 clean_ips.txt
 notifs.json
 ./vars/vars.go
+vars/vars.go
