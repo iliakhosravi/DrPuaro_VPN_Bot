@@ -82,6 +82,23 @@ func (config *Config) SubLink(db *gorm.DB) (string, string) {
 	return subLink, qrPath
 }
 
+// Returns panel subLink, QR Path
+func (config *Config) PanelSubLink(db *gorm.DB) (string, string) {
+	var c Config
+	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
+	subLink := c.CustomLink
+	if c.Order.Pack.Type == SanaeiPack {
+		client, _ := c.GetClient()
+		subLink, _ = panel.GetPanel().PanelSubLink(client)
+	}
+	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
+	err := qr.GenerateQRLogo(subLink, vars.Get("LOGO_PATH"), qrPath)
+	if err != nil {
+		fmt.Println("Unable to create QR Logo. err: ", err)
+	}
+	return subLink, qrPath
+}
+
 func (config *Config) Link(db *gorm.DB) string {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
