@@ -11,6 +11,7 @@ import (
 	main2 "techybat.org/go-vpn/controllers/main_controller"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/sub"
+	msgTool "techybat.org/go-vpn/tools/message"
 	"techybat.org/go-vpn/vars"
 
 	"github.com/go-telegram/bot"
@@ -53,6 +54,7 @@ func main() {
 	c.AddFunc("@every 5m", func() { configCrons.NotifyAll(ctx, b) })
 	// c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
 	c.AddFunc("@every 30m", panel.Setup)
+	c.AddFunc("@every 1h", func() { msgTool.SendBackup(ctx, b, vars.Get("STORAGE_CHANNEL_ID")) })
 
 	c.Start()
 
