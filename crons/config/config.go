@@ -62,7 +62,7 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 	getNotifs()
 	packQuery := db.Model(&m.Pack{}).Select("id").Where("type = ?", m.SanaeiPack)
 	orderQuery := db.Model(&m.Order{}).Select("id").Where("pack_id in (?)", packQuery).Where("type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).Where("id not in (?)", notifs.Depletions)
-	db.Where("order_id in (?)", orderQuery).Preload(clause.Associations).Preload("Order.User").Find(&configs)
+	db.Where("order_id in (?)", orderQuery).Preload(clause.Associations).Preload("Order.User").Preload("Order.Pack").Find(&configs)
 
 	fmt.Printf("NotifyAll configs\n")
 
@@ -89,6 +89,9 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 			remainedTraffic := client.RemainedTraffic()
 			switch {
 			case remainedTraffic <= 0:
+				if config.Order.Pack.Traffic == 0 {
+					continue
+				}
 				notifyDepletion(ctx, b, config, false)
 			case remainedTraffic <= 200:
 				notifyRemainedTraffic(ctx, b, config, 200)
