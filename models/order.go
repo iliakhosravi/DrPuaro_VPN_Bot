@@ -2,13 +2,18 @@ package models
 
 import (
 	"fmt"
+	"time"
 
+	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"techybat.org/go-vpn/tools/qr"
+	"techybat.org/go-vpn/vars"
 )
 
 type OrderType string
+type PayType string
 
 const (
 	UndefinedOrder OrderType = "undefined"
@@ -21,6 +26,13 @@ const (
 	PendLinkOrder  OrderType = "pend-link"
 )
 
+const (
+	UndefinedPay PayType = "undefined"
+	CardPay      PayType = "card"
+	WalletPay    PayType = "wallet"
+	CryptoPay    PayType = "crypto"
+)
+
 type Order struct {
 	BaseModel
 	UserID    uint      `json:"user_id"`
@@ -28,8 +40,10 @@ type Order struct {
 	PackID    uint      `json:"pack_id"`
 	Pack      Pack      `json:"pack"`
 	Type      OrderType `json:"type"`
+	PayType   PayType   `json:"pay_type"`
 	HandlerID string    `json:"-"`
 	AdminNote string    `json:"admin_note"`
+	InvoiceID uint      `json:"invoice_id" gorm:"default:0"`
 }
 
 func (order *Order) Migrate(db *gorm.DB) {
@@ -37,9 +51,18 @@ func (order *Order) Migrate(db *gorm.DB) {
 }
 
 func (order *Order) CreateOrder(db *gorm.DB) error {
-	result := db.Create(order)
+	db.Create(order)
+	result := db.Preload(clause.Associations).Preload("Pack.Currency").Find(order, order.ID)
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("unable to create Order: %v", result.Error)
+	}
+
+	if order.PayType == CryptoPay {
+		order.AdminNote = "در انتظار واریز کاربر(پیام سیستمی)"
+		if err := order.CreateCryptoInvoice(db); err != nil {
+			db.Delete(order)
+			return fmt.Errorf("unable to create Order: %v", err)
+		}
 	}
 	return nil
 }
@@ -55,6 +78,27 @@ func (order *Order) AddReceipt(db *gorm.DB, msgID int) (*Receipt, error) {
 	}
 
 	return &receipt, nil
+}
+
+func (order *Order) CreateCryptoInvoice(db *gorm.DB) error {
+	var coin paym.Coin
+	if res := db.First(&coin, "name = ?", order.Pack.Currency.Name); res.Error != nil {
+		return res.Error
+	}
+	invoice := paym.Invoice{
+		Price:        uint64(order.Pack.Price),
+		CoinID:       coin.ID,
+		AcceptOthers: false,
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+	}
+
+	if err := invoice.Create(db); err != nil {
+		return err
+	}
+
+	order.InvoiceID = invoice.ID
+
+	return db.Save(order).Error
 }
 
 func (order *Order) CancelOrder(db *gorm.DB) error {
@@ -137,6 +181,8 @@ func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
 		return order.Deplete(db)
 	case DismissedOrder:
 		return order.Dismiss(db, order.AdminNote)
+	case CancelledOrder:
+		return order.CancelOrder(db)
 	}
 	return fmt.Errorf("error: order.ChangeType, order type is not supported")
 }
@@ -233,14 +279,14 @@ func (o *Order) UserStr(db *gorm.DB) string {
 
 func (order Order) Name(db *gorm.DB) string {
 	var o Order
-	db.Preload(clause.Associations).Preload("Pack.Category").Find(&o, order.ID)
+	db.Preload(clause.Associations).Preload("Pack.Category").Preload("Pack.Currency").Find(&o, order.ID)
 	return fmt.Sprintf("%d | %s", o.ID, o.Pack.String())
 }
 
 func (o *Order) NormalStr(db *gorm.DB) string {
 	var txtMsg string
 	var order Order
-	db.Preload("Pack").Preload("Pack.Category").Find(&order, o.ID)
+	db.Preload("Pack").Preload("Pack.Category").Preload("Pack.Currency").Find(&order, o.ID)
 	if order.Type == ActiveOrder {
 		config := order.Config(db)
 		dateFormat := "d MMM y"
@@ -270,4 +316,14 @@ func (o *Order) FullStr(db *gorm.DB) string {
 		txtMsg += fmt.Sprintf("\nلینک ساب بسته: %s\nلینک ساب جیسون بسته: %s", o.Config(db).Link(db), o.Config(db).JSONLink(db))
 	}
 	return txtMsg
+}
+
+func (o *Order) CryptoLink(db *gorm.DB) (string, string) {
+	transferLink := paym.GetURLByInvoiceID(db, o.InvoiceID)
+	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), o.InvoiceID)
+	err := qr.GenerateQRLogo(transferLink, vars.Get("LOGO_PATH"), qrPath)
+	if err != nil {
+		fmt.Println("Unable to create QR Logo. err: ", err)
+	}
+	return transferLink, qrPath
 }

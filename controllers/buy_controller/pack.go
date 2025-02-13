@@ -21,7 +21,7 @@ type PackEditHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 
 func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard()
+	catKeyboard, typeKeyboard, currencyKeyboard := makeCatKeyboard(db), makeTypeKeyboard(), makeCurrencyKeyboard(db)
 
 	fields := []form.Field{
 		{
@@ -47,8 +47,15 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Validator:   models.PackValidator("limitIP"),
 		},
 		{
+			Name:        "currency",
+			MessageText: "قیمت بسته بر اساس چه ارزی است؟",
+			Type:        form.ButtonField,
+			Keyboard:    currencyKeyboard,
+			Validator:   models.PackValidator("currency_id"),
+		},
+		{
 			Name:        "price",
-			MessageText: "قیمت بسته برحسب تومان چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
+			MessageText: "قیمت بسته چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
 			Validator:   models.PackValidator("price"),
 		},
 		{
@@ -89,6 +96,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
+	currencyID, _ := strconv.ParseUint(form.FindField("currency").Value, 10, 0)
 	packType := models.PackType(form.FindField("type").Value)
 	title := form.FindField("title").Value
 
@@ -100,6 +108,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		Type:       packType,
 		Title:      title,
 		LimitIP:    uint(limitIP),
+		CurrencyID: uint(currencyID),
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -392,6 +401,23 @@ func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 			},
 		},
 	}
+}
+
+func makeCurrencyKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+	var currencies []models.Currency
+	db.Find(&currencies)
+	var curKeyboard = [][]tmodels.InlineKeyboardButton{}
+
+	for _, currency := range currencies {
+		curKeyboard = append(curKeyboard, []tmodels.InlineKeyboardButton{
+			{
+				Text:         currency.Name,
+				CallbackData: strconv.FormatUint(uint64(currency.ID), 10),
+			},
+		})
+	}
+
+	return curKeyboard
 }
 
 func makeCatKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {

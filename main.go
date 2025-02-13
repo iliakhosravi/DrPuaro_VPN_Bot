@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/signal"
 
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/controllers/admin_menu"
 	main2 "techybat.org/go-vpn/controllers/main_controller"
+	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/sub"
 	msgTool "techybat.org/go-vpn/tools/message"
@@ -20,6 +22,12 @@ import (
 	configCrons "techybat.org/go-vpn/crons/config"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
+
+	tmodels "github.com/go-telegram/bot/models"
+	cryptodb "github.com/sinasadeghi83/go-crypto-paywall/db"
+	"github.com/sinasadeghi83/go-crypto-paywall/listeners"
+	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
+	"github.com/sinasadeghi83/go-crypto-paywall/queue"
 )
 
 func main() {
@@ -52,6 +60,7 @@ func main() {
 	c := cron.New()
 
 	c.AddFunc("@every 5m", func() { configCrons.NotifyAll(ctx, b) })
+	c.AddFunc("@every 5m", func() { configCrons.CheckExpiredOrders(ctx, b) })
 	// c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
 	c.AddFunc("@every 30m", panel.Setup)
 	c.AddFunc("@every 1h", func() { msgTool.SendBackup(ctx, b, vars.Get("STORAGE_CHANNEL_ID")) })
@@ -64,5 +73,28 @@ func main() {
 		go sub.ServeHttp(ctx)
 	}
 
+	db := database.GetDB()
+	cryptodb.Setup(db)
+	queue.Setup(ctx, vars.Get("REDIS"), func(t paym.Transaction, i paym.Invoice, cw paym.CryptoWallet) {
+		var order models.Order
+		db.Preload(clause.Associations).Find(&order, "invoice_id = ?", i.ID)
+		order.Verify(db, "واریز با موفقیت دریافت شد(پیام سیستمی)", "")
+
+		carryMsg := fmt.Sprintf("سفارش شما به طور سیستمی تایید شد.\n%s", order.UserStr(db))
+
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    order.User.TelID,
+			Text:      carryMsg,
+			ParseMode: tmodels.ParseModeHTML,
+		})
+
+		msgTool.SendSubLink(ctx, b, order.User.TelID, order)
+	})
+
+	fmt.Println("Listening on payments...")
+
+	go listeners.ListenPayments(ctx)
+
+	fmt.Println("Bot is going to start...")
 	b.Start(ctx)
 }

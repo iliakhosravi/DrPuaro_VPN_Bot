@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/vars"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -29,6 +30,8 @@ type Pack struct {
 	Traffic    int        `json:"traffic"` //Gigabytes
 	Period     int        `json:"period"`  //Days
 	Price      int        `json:"price"`   //Toman
+	CurrencyID uint       `json:"currency_id"`
+	Currency   Currency   `json:"-"`
 	CategoryID uint       `json:"category_id"`
 	Category   Category   `json:"category"`
 	Status     PackStatus `json:"status" gorm:"default:undefined"`
@@ -42,7 +45,7 @@ func (pack *Pack) Migrate(db *gorm.DB) {
 }
 
 func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
-	db.Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
+	db.Preload(clause.Associations).Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
 }
 
 func (pack Pack) Name() string {
@@ -64,7 +67,7 @@ func (pack Pack) String() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s | %s | %d تومان | %s کاربره", pack.TrafficString(), StringPeriod(pack.Period), pack.Price, pack.UserLimitStr())
+	return fmt.Sprintf("%s | %s | %d %s | %s کاربره", pack.TrafficString(), StringPeriod(pack.Period), (pack.Price / int(pack.Currency.UnitFactor)), pack.Currency.Unit, pack.UserLimitStr())
 }
 
 func (pack Pack) TrafficString() string {
@@ -143,6 +146,8 @@ func PackValidator(fieldName string) form.Validator {
 		var err error
 		switch fieldName {
 		case "category_id":
+			_, err = strconv.ParseUint(value, 10, 0)
+		case "currency_id":
 			_, err = strconv.ParseUint(value, 10, 0)
 		case "type":
 			if value != string(CustomPack) && value != string(SanaeiPack) {

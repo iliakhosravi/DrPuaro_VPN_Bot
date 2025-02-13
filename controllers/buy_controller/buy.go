@@ -8,8 +8,10 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
@@ -26,26 +28,41 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	packId := dataArr[0]
 	var pack models.Pack
 	var packMsg string
-	if result := db.Where("status = ?", models.ActivePack).First(&pack, packId); result.RowsAffected == 0 {
+	if result := db.Where("status = ?", models.ActivePack).Preload(clause.Associations).Find(&pack, packId); result.RowsAffected == 0 {
 		packMsg = "این بسته در دسترس نمی باشد"
 	} else {
 		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید.\nمشخصات:%s", pack.String(), pack.String())
 	}
 
+	buyOpts := [][]dialog.Button{
+		{
+			{
+				Text: "کیف پول", NodeID: "wallet",
+			},
+		},
+	}
+
+	if card := models.GetActiveCard(db); card.Status == (models.ActiveCard) {
+		buyOpts = append(buyOpts, ([]dialog.Button{
+			{
+				ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
+			},
+		}))
+	}
+
+	if res := db.Find(&paym.CryptoWallet{}, "status = 'active'"); res.RowsAffected > 0 {
+		buyOpts = append(buyOpts, ([]dialog.Button{
+			{
+				ID: "crypto", Text: "واریز رمزارزی", CallbackHandler: CryptoBuyController, CallbackData: update.CallbackQuery.Data,
+			},
+		}))
+	}
+
 	nodes := []dialog.Node{
 		{
-			ID:   "buy-options",
-			Text: "از چه طریقی می خواهید پرداخت انجام شود؟",
-			Keyboard: [][]dialog.Button{
-				{
-					{
-						Text: "کیف پول", NodeID: "wallet",
-					},
-					{
-						ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
-					},
-				},
-			},
+			ID:       "buy-options",
+			Text:     "از چه طریقی می خواهید پرداخت انجام شود؟",
+			Keyboard: buyOpts,
 		},
 		{
 			ID:   "wallet",
@@ -121,6 +138,49 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 
 	msgTool.SendShortLink(ctx, b, chatID, *order)
 
+}
+
+func CryptoBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	user := ctx.Value(auth.UserKey).(models.User)
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	dataArr := strings.Split(update.CallbackQuery.Data, "_")
+	packId := dataArr[0]
+	var configID string
+	if len(dataArr) > 1 {
+		configID = dataArr[1]
+	}
+
+	var pack models.Pack
+	db.First(&pack, packId)
+
+	var order *models.Order
+	var err error
+	var txtMsg string
+	if len(dataArr) > 1 {
+		order, err = user.RevivePackByCrypto(db, &pack, configID)
+	} else {
+		order, err = user.BuyPackByCrypto(db, &pack)
+	}
+
+	if err != nil {
+		txtMsg = "خطایی پیش آمده"
+	} else {
+		txtMsg = fmt.Sprintf("سفارش شما ایجاد شد.\nاطلاعات سفارش:%s", order.UserStr(db))
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+
+	msgTool.SendCryptoLink(ctx, b, chatID, *order)
 }
 
 func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
