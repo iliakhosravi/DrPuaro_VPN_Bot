@@ -93,7 +93,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	}
 
 	msgTool.SendShortLink(ctx, b, chatID, order)
-	msgTool.SendCryptoLink(ctx, b, chatID, order)
+	msgTool.SendCryptoLink(ctx, b, chatID, &order)
 }
 
 func showDepletedOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

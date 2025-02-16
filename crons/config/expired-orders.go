@@ -28,4 +28,22 @@ func CheckExpiredOrders(ctx context.Context, b *bot.Bot) {
 			Text:   txtMsg,
 		})
 	}
+
+	var exChOrders []m.ChargeOrder
+	db.Joins("JOIN invoices on invoices.id = charge_orders.invoice_id").
+		Where("invoices.expires_at <= ?", time.Now()).
+		Where("charge_orders.type = ?", string(m.PendingCharge)).
+		Preload("User").
+		Find(&exChOrders)
+
+	for _, order := range exChOrders {
+		order.DismissCharge(db)
+		txtMsg := "مهلت پرداخت سفارش شارژ شما منقضی شده:\n\n"
+		txtMsg += order.FullStr()
+
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: order.User.TelID,
+			Text:   txtMsg,
+		})
+	}
 }

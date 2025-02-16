@@ -77,18 +77,34 @@ func main() {
 	cryptodb.Setup(db)
 	queue.Setup(ctx, vars.Get("REDIS"), func(t paym.Transaction, i paym.Invoice, cw paym.CryptoWallet) {
 		var order models.Order
-		db.Preload(clause.Associations).Find(&order, "invoice_id = ?", i.ID)
-		order.Verify(db, "واریز با موفقیت دریافت شد(پیام سیستمی)", "")
+		res := db.Preload(clause.Associations).Find(&order, "invoice_id = ?", i.ID)
+		if res.RowsAffected > 0 {
+			order.Verify(db, "واریز با موفقیت دریافت شد(پیام سیستمی)", "")
 
-		carryMsg := fmt.Sprintf("سفارش شما به طور سیستمی تایید شد.\n%s", order.UserStr(db))
+			carryMsg := fmt.Sprintf("سفارش شما به طور سیستمی تایید شد.\n%s", order.UserStr(db))
 
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    order.User.TelID,
-			Text:      carryMsg,
-			ParseMode: tmodels.ParseModeHTML,
-		})
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    order.User.TelID,
+				Text:      carryMsg,
+				ParseMode: tmodels.ParseModeHTML,
+			})
 
-		msgTool.SendSubLink(ctx, b, order.User.TelID, order)
+			msgTool.SendSubLink(ctx, b, order.User.TelID, order)
+		}
+
+		var cOrder models.ChargeOrder
+		res = db.Preload(clause.Associations).Find(&cOrder, "invoice_id = ?", i.ID)
+		if res.RowsAffected > 0 {
+			cOrder.AcceptCharge(db)
+
+			carryMsg := fmt.Sprintf("سفارش شما به طور سیستمی تایید شد.\n%s", cOrder.FullStr())
+
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    cOrder.User.TelID,
+				Text:      carryMsg,
+				ParseMode: tmodels.ParseModeHTML,
+			})
+		}
 	})
 
 	fmt.Println("Listening on payments...")

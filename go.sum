@@ -60,6 +60,8 @@ github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250213214858-e7976655f9d7 h1
 github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250213214858-e7976655f9d7/go.mod h1:o2IzO3QAXlJtpv+mPSBqlEq0Bb45lkqemPjTpKoVAIE=
 github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250213215401-f9d298ffc26e h1:a9esDNImX4HEmqpHbCQNy08Ug2sZXnFC+Hgf5H46xBY=
 github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250213215401-f9d298ffc26e/go.mod h1:o2IzO3QAXlJtpv+mPSBqlEq0Bb45lkqemPjTpKoVAIE=
+github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250216182045-5fb790974adc h1:z6WrNAA3pihYbtXyac3tLiPUYkC1Hb2XIT43SEydCn4=
+github.com/sinasadeghi83/go-crypto-paywall v0.0.0-20250216182045-5fb790974adc/go.mod h1:o2IzO3QAXlJtpv+mPSBqlEq0Bb45lkqemPjTpKoVAIE=
 github.com/sinasadeghi83/go-telegram-bot-ui v0.0.0-20240814134859-aa0bb449e83b h1:/XDRsdsDxkO2UT6sDG9RYCvKnVkvunMyauBxuBoWsb4=
 github.com/sinasadeghi83/go-telegram-bot-ui v0.0.0-20240814134859-aa0bb449e83b/go.mod h1:zPQnRsoTn+UHghiX39uiHebEMxHuxh3KT2hgETOjHS0=
 github.com/spf13/cast v1.7.1 h1:cuNEagBQEHWN1FnbGEjCXL2szYEXqfJPbP2HNUaca9Y=

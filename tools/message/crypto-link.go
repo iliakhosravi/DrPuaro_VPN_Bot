@@ -8,18 +8,38 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
 )
 
-func SendCryptoLink(ctx context.Context, b *bot.Bot, chatID any, order m.Order) {
+type CryptoOrder interface {
+	CryptoLink(db *gorm.DB) (string, string)
+	CryptoAddrMemo(db *gorm.DB) (string, string)
+	IsPending(db *gorm.DB) bool
+	PaymentType() m.PayType
+	CoinName(db *gorm.DB) string
+	CoinUnit(db *gorm.DB) string
+	ProductName() string
+	GetAmount(db *gorm.DB) float32
+}
+
+func SendCryptoLink(ctx context.Context, b *bot.Bot, chatID any, order CryptoOrder) {
 	db := database.GetDB()
-	if order.Type == m.PendingOrder && order.PayType == m.CryptoPay {
+	if order.IsPending(db) && order.PaymentType() == m.CryptoPay {
 		cryptoLink, qrPath := order.CryptoLink(db)
 		fileContent, _ := os.ReadFile(qrPath)
+		addr, memo := order.CryptoAddrMemo(db)
 		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
-			ChatID:    chatID,
-			Caption:   fmt.Sprintf("برای واریز رمزارز '%s' در واحد '%s' می توانید تصویر را با کیف پول خود اسکن کرده یا از لینک زیر استفاده کنید \n%s\n🔗 لینک:\n`%s`\nاین لینک تنها تا 15 دقیقه دیگر معتبر است", bot.EscapeMarkdown(order.Pack.Currency.Name), bot.EscapeMarkdown(order.Pack.Currency.Unit), bot.EscapeMarkdown(order.Pack.Name()), bot.EscapeMarkdown(cryptoLink)),
+			ChatID: chatID,
+			Caption: fmt.Sprintf("برای واریز رمزارز '%s' در واحد '%s' به میزان %s می توانید تصویر را با کیف پول خود اسکن کرده یا از لینک زیر استفاده کنید \n%s\n🔗 لینک:\n`%s`\nآدرس کیف پول:`%s`\nMemo or Comment:`%s`\nاین لینک تنها تا 15 دقیقه دیگر معتبر است",
+				bot.EscapeMarkdown(order.CoinName(db)),
+				bot.EscapeMarkdown(order.CoinUnit(db)),
+				bot.EscapeMarkdown(fmt.Sprintf("%g", order.GetAmount(db))),
+				bot.EscapeMarkdown(order.ProductName()),
+				bot.EscapeMarkdown(cryptoLink),
+				bot.EscapeMarkdown(addr),
+				bot.EscapeMarkdown(memo)),
 			Photo:     &tmodels.InputFileUpload{Filename: "qrcode.jpg", Data: bytes.NewReader(fileContent)},
 			ParseMode: tmodels.ParseModeMarkdown,
 		})

@@ -101,6 +101,28 @@ func (order *Order) CreateCryptoInvoice(db *gorm.DB) error {
 	return db.Save(order).Error
 }
 
+func (order *Order) IsPending(db *gorm.DB) bool {
+	var invoice paym.Invoice
+	db.Find(&invoice, order.InvoiceID)
+	return order.Type == PendingOrder && invoice.ExpiresAt.After(time.Now())
+}
+
+func (order *Order) PaymentType() PayType {
+	return order.PayType
+}
+
+func (order *Order) CoinName(db *gorm.DB) string {
+	return order.Pack.Currency.Name
+}
+
+func (order *Order) CoinUnit(db *gorm.DB) string {
+	return order.Pack.Currency.Unit
+}
+
+func (order *Order) ProductName() string {
+	return order.Pack.Name()
+}
+
 func (order *Order) CancelOrder(db *gorm.DB) error {
 	order.Type = CancelledOrder
 	if result := db.Save(order); result.RowsAffected == 0 {
@@ -326,4 +348,14 @@ func (o *Order) CryptoLink(db *gorm.DB) (string, string) {
 		fmt.Println("Unable to create QR Logo. err: ", err)
 	}
 	return transferLink, qrPath
+}
+
+func (o *Order) CryptoAddrMemo(db *gorm.DB) (string, string) {
+	return paym.GetAddrMemoByInvoiceID(db, o.InvoiceID)
+}
+
+func (o *Order) GetAmount(db *gorm.DB) float32 {
+	var order Order
+	db.Preload(clause.Associations).Preload("Pack.Currency").Find(&order, o.ID)
+	return order.Pack.GetPrice()
 }

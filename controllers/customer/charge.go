@@ -15,6 +15,6 @@ func BalanceHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: user.TelID,
-		Text:   fmt.Sprintf("موجودی کیف پول شما %d تومان است.\nبرای شارژ کیف پول خود از منو اصلی می توانید شارژ اکانت را انتخاب کنید.", user.Charge),
+		Text:   fmt.Sprintf("موجودی کیف پول شما %g دلار است.\nبرای شارژ کیف پول خود از منو اصلی می توانید شارژ اکانت را انتخاب کنید.", float32(user.Charge)/1000000),
 	})
 }

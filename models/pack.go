@@ -45,7 +45,7 @@ func (pack *Pack) Migrate(db *gorm.DB) {
 }
 
 func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
-	db.Preload(clause.Associations).Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
+	db.Preload(clause.Associations).Preload("Currency").Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
 }
 
 func (pack Pack) Name() string {
@@ -67,7 +67,11 @@ func (pack Pack) String() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s | %s | %d %s | %s کاربره", pack.TrafficString(), StringPeriod(pack.Period), (pack.Price / int(pack.Currency.UnitFactor)), pack.Currency.Unit, pack.UserLimitStr())
+	return fmt.Sprintf("%s | %s | %s کاربره | %g %s", pack.TrafficString(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit)
+}
+
+func (pack Pack) GetPrice() float32 {
+	return float32(pack.Price) / float32(pack.Currency.UnitFactor)
 }
 
 func (pack Pack) TrafficString() string {
@@ -121,7 +125,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.Price, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %g %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
