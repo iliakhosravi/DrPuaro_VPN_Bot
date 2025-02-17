@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/vars"
@@ -67,11 +68,14 @@ func (pack Pack) String() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s | %s | %s کاربره | %g %s", pack.TrafficString(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit)
+	return fmt.Sprintf("%s | %s | %s کاربره | %s %s", pack.TrafficString(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit)
 }
 
-func (pack Pack) GetPrice() float32 {
-	return float32(pack.Price) / float32(pack.Currency.UnitFactor)
+func (pack Pack) GetPrice() decimal.Decimal {
+	price := decimal.NewFromInt(int64(pack.Price))
+	unitFactor := decimal.NewFromInt(int64(pack.Currency.UnitFactor))
+	price = price.Div(unitFactor)
+	return price
 }
 
 func (pack Pack) TrafficString() string {
@@ -125,7 +129,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %g %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {

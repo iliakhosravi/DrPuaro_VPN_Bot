@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
@@ -354,7 +355,7 @@ func (o *Order) CryptoAddrMemo(db *gorm.DB) (string, string) {
 	return paym.GetAddrMemoByInvoiceID(db, o.InvoiceID)
 }
 
-func (o *Order) GetAmount(db *gorm.DB) float32 {
+func (o *Order) GetAmount(db *gorm.DB) decimal.Decimal {
 	var order Order
 	db.Preload(clause.Associations).Preload("Pack.Currency").Find(&order, o.ID)
 	return order.Pack.GetPrice()

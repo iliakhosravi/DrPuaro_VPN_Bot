@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
 	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"gorm.io/gorm"
@@ -293,12 +294,12 @@ func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	user := ctx.Value(auth.UserKey).(models.User)
 	form := ctx.Value(form.FORM_KEY).(*form.Form)
-	amount, _ := strconv.ParseFloat(form.FindField("amount").Value, 32)
+	amount, _ := decimal.NewFromString(form.FindField("amount").Value)
 	coinID, _ := strconv.ParseUint(form.FindField("coin").Value, 10, 0)
 
 	chargeOrder := models.ChargeOrder{
 		UserID: user.ID,
-		Amount: float32(amount),
+		Amount: models.Decimal{amount},
 		Type:   models.PendingCharge,
 		CoinID: uint(coinID),
 	}

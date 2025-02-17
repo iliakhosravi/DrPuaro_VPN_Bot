@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ type ChargeOrder struct {
 	User      User       `json:"user"`
 	InvoiceID uint       `json:"invoice_id"`
 	CoinID    uint       `json:"coin_id"`
-	Amount    float32    `json:"amount"`
+	Amount    Decimal    `gorm:"varchar(15)" json:"amount"`
 	Type      ChargeType `json:"type"`
 	AdminNote string     `json:"admin_note"`
 }
@@ -45,7 +46,7 @@ func (order *ChargeOrder) CreateInvoice(db *gorm.DB) (*paym.Invoice, error) {
 		return nil, res.Error
 	}
 	invoice := paym.Invoice{
-		Price:        uint64(order.Amount * float32(coin.UnitFactor)),
+		Price:        order.GetIntAmount(db),
 		CoinID:       coin.ID,
 		AcceptOthers: false,
 		ExpiresAt:    time.Now().Add(15 * time.Minute),
@@ -91,8 +92,8 @@ func (o *ChargeOrder) CryptoAddrMemo(db *gorm.DB) (string, string) {
 	return paym.GetAddrMemoByInvoiceID(db, o.InvoiceID)
 }
 
-func (o *ChargeOrder) GetAmount(db *gorm.DB) float32 {
-	return o.Amount
+func (o *ChargeOrder) GetAmount(db *gorm.DB) decimal.Decimal {
+	return o.Amount.Decimal
 }
 
 func (o *ChargeOrder) CryptoLink(db *gorm.DB) (string, string) {
@@ -128,7 +129,15 @@ func (order *ChargeOrder) CoinUnit(db *gorm.DB) string {
 }
 
 func (order *ChargeOrder) ProductName() string {
-	return fmt.Sprintf("%g$", order.Amount)
+	return fmt.Sprintf("%s$", order.Amount)
+}
+
+func (order *ChargeOrder) GetIntAmount(db *gorm.DB) uint64 {
+	var coin paym.Coin
+	if result := db.First(&coin, order.CoinID); result.Error != nil {
+		return 0
+	}
+	return order.GetAmount(db).Mul(decimal.NewFromInt(int64(coin.UnitFactor))).BigInt().Uint64()
 }
 
 func (order *ChargeOrder) AcceptCharge(db *gorm.DB) error {
@@ -141,7 +150,7 @@ func (order *ChargeOrder) AcceptCharge(db *gorm.DB) error {
 		if result := tx.First(&user, order.UserID); result.Error != nil {
 			return result.Error
 		}
-		user.Charge += uint64(order.Amount * float32(coin.UnitFactor))
+		user.Charge += order.GetIntAmount(db)
 		if result := tx.Save(&user); result.Error != nil {
 			return result.Error
 		}
@@ -179,7 +188,7 @@ func (order *ChargeOrder) FullStr() string {
 	dateFormat := "d MMM y"
 	orderDate := ptime.New(order.CreatedAt).Format(dateFormat)
 	updateOrderDate := ptime.New(order.UpdatedAt).Format(dateFormat)
-	return fmt.Sprintf("میزان شارژ: %g دلار\nتاریخ درخواست: %s\nیادداشت ادمین: %s\nوضعیت: %s\nتاریخ آخرین تغییرات: %s", order.Amount, orderDate, order.AdminNote, order.Type, updateOrderDate)
+	return fmt.Sprintf("میزان شارژ: %s دلار\nتاریخ درخواست: %s\nیادداشت ادمین: %s\nوضعیت: %s\nتاریخ آخرین تغییرات: %s", order.Amount.Decimal, orderDate, order.AdminNote, order.Type, updateOrderDate)
 }
 
 func (chargeType ChargeType) String() string {
@@ -196,7 +205,7 @@ func (chargeType ChargeType) String() string {
 }
 
 func DollarValidator(value string) (bool, string) {
-	_, err := strconv.ParseFloat(value, 32)
+	_, err := decimal.NewFromString(value)
 	if err != nil {
 		return false, "لطفا تنها ورودی عددی وارد نمایید."
 	}

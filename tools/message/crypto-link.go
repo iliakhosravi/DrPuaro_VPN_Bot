@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
@@ -21,7 +22,7 @@ type CryptoOrder interface {
 	CoinName(db *gorm.DB) string
 	CoinUnit(db *gorm.DB) string
 	ProductName() string
-	GetAmount(db *gorm.DB) float32
+	GetAmount(db *gorm.DB) decimal.Decimal
 }
 
 func SendCryptoLink(ctx context.Context, b *bot.Bot, chatID any, order CryptoOrder) {
@@ -35,7 +36,7 @@ func SendCryptoLink(ctx context.Context, b *bot.Bot, chatID any, order CryptoOrd
 			Caption: fmt.Sprintf("برای واریز رمزارز '%s' در واحد '%s' به میزان %s می توانید تصویر را با کیف پول خود اسکن کرده یا از لینک زیر استفاده کنید \n%s\n🔗 لینک:\n`%s`\nآدرس کیف پول:`%s`\nMemo or Comment:`%s`\nاین لینک تنها تا 15 دقیقه دیگر معتبر است",
 				bot.EscapeMarkdown(order.CoinName(db)),
 				bot.EscapeMarkdown(order.CoinUnit(db)),
-				bot.EscapeMarkdown(fmt.Sprintf("%g", order.GetAmount(db))),
+				bot.EscapeMarkdown(order.GetAmount(db).String()),
 				bot.EscapeMarkdown(order.ProductName()),
 				bot.EscapeMarkdown(cryptoLink),
 				bot.EscapeMarkdown(addr),
