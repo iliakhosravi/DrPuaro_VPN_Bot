@@ -33,7 +33,7 @@ func SendCryptoLink(ctx context.Context, b *bot.Bot, chatID any, order CryptoOrd
 		addr, memo := order.CryptoAddrMemo(db)
 		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
 			ChatID: chatID,
-			Caption: fmt.Sprintf("برای واریز رمزارز '%s' در واحد '%s' به میزان %s می توانید تصویر را با کیف پول خود اسکن کرده یا از لینک زیر استفاده کنید \n%s\n🔗 لینک:\n`%s`\nآدرس کیف پول:`%s`\nMemo or Comment:`%s`\nاین لینک تنها تا 15 دقیقه دیگر معتبر است",
+			Caption: fmt.Sprintf("برای واریز رمزارز '%s' در واحد '%s' به میزان %s می توانید تصویر را با کیف پول خود اسکن کرده یا از لینک زیر استفاده کنید \n%s\n🔗 لینک: \n`%s`\nآدرس کیف پول: `%s`\nMemo or Comment: `%s`\nاین لینک تنها تا 15 دقیقه دیگر معتبر است",
 				bot.EscapeMarkdown(order.CoinName(db)),
 				bot.EscapeMarkdown(order.CoinUnit(db)),
 				bot.EscapeMarkdown(order.GetAmount(db).String()),
