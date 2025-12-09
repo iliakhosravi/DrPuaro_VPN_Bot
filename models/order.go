@@ -83,8 +83,17 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 	config.CustomLink = customLink
 
 	err := db.Transaction(func(tx *gorm.DB) error {
+		var err error
 		if o.Pack.Type == SanaeiPack {
-			config.SetupSanaei(tx, o)
+			err = config.SetupSanaei(tx, o)
+		}
+
+		if o.Pack.Type == SUIPack {
+			err = config.SetupSUI(tx, o)
+		}
+
+		if err != nil {
+			return fmt.Errorf("unable to setup with panel: %w", err)
 		}
 
 		if result := tx.Save(&config); result.RowsAffected == 0 {
@@ -118,6 +127,10 @@ func (order *Order) Deplete(db *gorm.DB) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if o.Pack.Type == SanaeiPack {
 			o.Config(tx).DepleteSanaei(tx, o)
+		}
+
+		if o.Pack.Type == SUIPack {
+			o.Config(tx).DepleteSUI(tx, o)
 		}
 		if result := db.Save(order); result.RowsAffected == 0 {
 			return fmt.Errorf("unable to deplete order: %v", result.Error)

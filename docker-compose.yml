@@ -1,0 +1,61 @@
+version: '3.9'
+
+services:
+  techybat_db:
+    image: mysql:8.0
+    container_name: techybat_db
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASS}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASS}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - techybat_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  techybat_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - idrsa
+        - idrsapub
+    container_name: techybat_bot
+    depends_on:
+      techybat_db:
+        condition: service_healthy
+    
+    env_file:
+      - .env
+    environment:
+      # HTTP_PROXY: http://172.17.0.1:2080  # Replace 2081 with your Throne HTTP port
+      # HTTPS_PROXY: http://172.17.0.1:2080
+      MYSQL_HOST: techybat_db
+    ports:
+      - "${SUB_PORT}:${SUB_PORT}"
+    networks:
+      - techybat_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  techybat_network:
+    driver: bridge
+
+secrets:
+  idrsa:
+    file: ${SSH_PRIVATE_KEY}
+  idrsapub:
+    file: ${SSH_PUBLIC_KEY}

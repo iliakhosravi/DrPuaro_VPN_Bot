@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	m "techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/sui"
 )
 
 var (
@@ -57,6 +59,75 @@ func getNotifs() *Notifs {
 }
 
 func NotifyAll(ctx context.Context, b *bot.Bot) {
+	NotifySanaei(ctx, b)
+	NotifySUI(ctx, b)
+}
+
+func NotifySUI(ctx context.Context, b *bot.Bot) {
+	db := database.GetDB()
+	var configs []m.Config
+	getNotifs()
+
+	orderQuery := db.Model(&m.Order{}).
+		Joins("inner join packs on orders.pack_id = packs.id").
+		Where("packs.type = ?", m.SUIPack).
+		Where("orders.type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).
+		Where("orders.id not in (?)", notifs.Depletions).
+		Select("orders.id")
+
+	db.Where("order_id in (?)", orderQuery).
+		Preload(clause.Associations).
+		Preload("Order.User").
+		Preload("Order.Pack").
+		Find(&configs)
+
+	for _, config := range configs {
+		s := sui.GetSui()
+		err := config.Sync(db)
+		if err != nil {
+			fmt.Println("Error: unable to sync config. err: ", err)
+			continue
+		}
+
+		clientID, _ := strconv.Atoi(config.SubID)
+		client, err := s.GetClientByID(clientID)
+		if err != nil {
+			fmt.Println("Error: unable to retrieve client for notify all. err: ", err)
+			continue
+		}
+		expiryTime := time.Unix(client.Expiry, 0)
+		duration := time.Until(expiryTime)
+		daysDuration := int(duration.Hours()) / 24
+		if !client.Enable {
+			notifyDepletion(ctx, b, config, duration.Hours() <= 0)
+			continue
+		}
+
+		switch {
+		case duration.Hours() <= 0:
+			notifyDepletion(ctx, b, config, true)
+		case daysDuration <= 7:
+			notifyEndDays(ctx, b, config, daysDuration)
+		}
+
+		switch {
+		case client.RemainedTraffic() <= 0:
+			if config.Order.Pack.Traffic == 0 {
+				continue
+			}
+			notifyDepletion(ctx, b, config, false)
+		case client.RemainedTraffic() <= 200:
+			notifyRemainedTraffic(ctx, b, config, 200)
+		case client.RemainedTraffic() <= 500:
+			notifyRemainedTraffic(ctx, b, config, 500)
+		case client.RemainedTraffic() <= 1000:
+			notifyRemainedTraffic(ctx, b, config, 1000)
+		}
+	}
+	saveNotifs()
+}
+
+func NotifySanaei(ctx context.Context, b *bot.Bot) {
 	db := database.GetDB()
 	var configs []m.Config
 	getNotifs()

@@ -65,6 +65,11 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Keyboard:    typeKeyboard,
 			Validator:   models.PackValidator("type"),
 		},
+		{
+			Name:        "client_name",
+			MessageText: "نام کلاینتی که کانفیگ ها بر پایه آن ساخته می‌شود را وارد کنید.(برای پنل S-UI)",
+			IsSkippable: true,
+		},
 	}
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	userID := update.CallbackQuery.From.ID
@@ -90,6 +95,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
 	packType := models.PackType(form.FindField("type").Value)
+	clientName := form.FindField("client_name").Value
 	title := form.FindField("title").Value
 
 	pack := models.Pack{
@@ -100,6 +106,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		Type:       packType,
 		Title:      title,
 		LimitIP:    uint(limitIP),
+		ClientName: clientName,
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -389,6 +396,10 @@ func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 			{
 				Text:         "سنایی",
 				CallbackData: string(models.SanaeiPack),
+			},
+			{
+				Text:         "S-UI",
+				CallbackData: string(models.SUIPack),
 			},
 		},
 	}

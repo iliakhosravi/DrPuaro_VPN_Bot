@@ -21,6 +21,7 @@ const (
 const (
 	CustomPack PackType = "custom"
 	SanaeiPack PackType = "sanaei"
+	SUIPack    PackType = "sui"
 )
 
 type Pack struct {
@@ -35,6 +36,7 @@ type Pack struct {
 	InboundID  int        `json:"inbound_id" gorm:"default:-1"`
 	Type       PackType   `json:"type" gorm:"default:custom"`
 	LimitIP    uint       `json:"limit_ip" gorm:"default:0"`
+	ClientName string     `json:"client_name" gorm:"default:null"` //SUI Only
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {
@@ -145,7 +147,7 @@ func PackValidator(fieldName string) form.Validator {
 		case "category_id":
 			_, err = strconv.ParseUint(value, 10, 0)
 		case "type":
-			if value != string(CustomPack) && value != string(SanaeiPack) {
+			if value != string(CustomPack) && value != string(SanaeiPack) && value != (string(SUIPack)) {
 				err = fmt.Errorf("no such pack type")
 			}
 		case "title":
