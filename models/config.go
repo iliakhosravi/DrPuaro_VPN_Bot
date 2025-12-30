@@ -262,26 +262,32 @@ func (config *Config) SetupSUI(db *gorm.DB, o Order) error {
 	}
 
 	gb, mb := o.Pack.TrafficGbMb()
+	traffic := int64(gb*sui.ONE_GB + mb*sui.ONE_MB)
 	gen, _ := cuid2.Init(cuid2.WithLength(8))
 	clientName := gen()
 	desc := fmt.Sprintf("U%d_O%d @%s", o.UserID, o.ID, o.User.Username)
 	client := sui.InitClient(
 		clientName,
 		baseClient.Inbounds,
-		int64(gb*sui.ONE_GB+mb*sui.ONE_MB),
+		traffic,
 		config.StartDate.AddDate(0, 0, o.Pack.Period),
 		desc,
 		o.Pack.ClientName,
 	)
 
 	if len(config.SubID) > 0 {
-		var temp uint64
-		temp, err = strconv.ParseUint(config.SubID, 0, 0)
+		subId, err := strconv.ParseUint(config.SubID, 0, 0)
 		if err != nil {
 			return err
 		}
-		clientID := uint(temp)
+		oldClient, err := s.GetClientByID(int(subId))
+		if err != nil {
+			return err
+		}
+		clientID := uint(subId)
 		client.ID = &clientID
+		client.Name = oldClient.Name
+		client.Config = oldClient.Config
 		client, err = s.UpdateClient(*client)
 	} else {
 		client, err = s.NewClient(*client)
