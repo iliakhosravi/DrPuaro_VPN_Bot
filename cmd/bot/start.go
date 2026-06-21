@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 
@@ -14,7 +13,6 @@ import (
 	"techybat.org/go-vpn/vars"
 
 	"github.com/go-telegram/bot"
-	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 	"github.com/spf13/cobra"
 	configCrons "techybat.org/go-vpn/crons/config"
@@ -27,11 +25,6 @@ var StartCmd = &cobra.Command{
 	Short: "Start the VPN bot",
 	Long:  `Start the Telegram bot for managing VPN configurations and orders.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := godotenv.Load(".env")
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-
 		database.Setup()
 
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
