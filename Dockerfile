@@ -1,10 +1,6 @@
-FROM golang:1.25.3-alpine as builder
-
-
-RUN apk add --no-cache git openssh-client
+FROM golang:1.25.3-alpine AS builder
 
 WORKDIR /app
-
 
 COPY go.mod go.sum ./
 
@@ -23,11 +19,9 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-ENV SUB_PORT=8443
-EXPOSE ${SUB_PORT}
-
 # Copy the built binary from the builder stage
-COPY --from=builder /app /app
+COPY --from=builder /app/govpn /app/
+COPY --from=builder /app/vpn.png /app/
 
 # Optional but recommended: Copy certificates from the builder stage
 # This ensures your final minimal image has the same root CAs as the build env.

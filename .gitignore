@@ -15,3 +15,5 @@ vars/vars.go
 /backup
 .env.techy
 .env.ultra
+temp
+sing-box

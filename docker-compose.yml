@@ -3,7 +3,6 @@ version: "3.9"
 services:
   db:
     image: mysql:8.0
-    container_name: db
     env_file:
       - .env
     environment:
@@ -21,14 +20,7 @@ services:
       retries: 10
 
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      network: host
-      args:
-        HTTP_PROXY: ${HTTP_PROXY}
-        HTTPS_PROXY: ${HTTPS_PROXY}
-
+    image: techybot:latest
     container_name: bot
     depends_on:
       db:
@@ -40,13 +32,14 @@ services:
       HTTP_PROXY: http://proxy:2080
       HTTPS_PROXY: http://proxy:2080
       MYSQL_HOST: db
+    volumes:
+      - ./notifs.json:./notifs.json
     # ports:
     # - "${SUB_PORT}:${SUB_PORT}"
     restart: unless-stopped
 
   proxy:
     image: sagernet/sing-box:latest
-    container_name: proxy
     restart: always
     volumes:
       - ./sing-box:/etc/sing-box/
