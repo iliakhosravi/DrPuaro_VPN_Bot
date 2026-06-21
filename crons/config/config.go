@@ -103,11 +103,13 @@ func NotifySUI(ctx context.Context, b *bot.Bot) {
 			continue
 		}
 
-		switch {
-		case duration.Hours() <= 0:
-			notifyDepletion(ctx, b, config, true)
-		case daysDuration <= 7:
-			notifyEndDays(ctx, b, config, daysDuration)
+		if client.Expiry != 0 {
+			switch {
+			case duration.Hours() <= 0:
+				notifyDepletion(ctx, b, config, true)
+			case daysDuration <= 7:
+				notifyEndDays(ctx, b, config, daysDuration)
+			}
 		}
 
 		switch {
@@ -147,13 +149,15 @@ func NotifySanaei(ctx context.Context, b *bot.Bot) {
 		duration := time.Until(endTime)
 		daysDuration := int(duration.Hours()) / 24
 		notified := false
-		switch {
-		case duration.Hours() <= 0:
-			notifyDepletion(ctx, b, config, true)
-			notified = true
+		if client.ExpiryTime != 0 {
+			switch {
+			case duration.Hours() <= 0:
+				notifyDepletion(ctx, b, config, true)
+				notified = true
 
-		case daysDuration <= 7:
-			notifyEndDays(ctx, b, config, daysDuration)
+			case daysDuration <= 7:
+				notifyEndDays(ctx, b, config, daysDuration)
+			}
 		}
 
 		if !notified {
