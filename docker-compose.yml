@@ -21,11 +21,9 @@ services:
 
   bot:
     image: techybot:latest
-    container_name: bot
     depends_on:
       db:
         condition: service_healthy
-
     env_file:
       - .env
     environment:
@@ -33,7 +31,7 @@ services:
       HTTPS_PROXY: http://proxy:2080
       MYSQL_HOST: db
     volumes:
-      - ./notifs.json:./notifs.json
+      - ./notifs.json:/app/notifs.json
     # ports:
     # - "${SUB_PORT}:${SUB_PORT}"
     restart: unless-stopped
