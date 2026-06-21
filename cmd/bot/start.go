@@ -10,7 +10,6 @@ import (
 	"techybat.org/go-vpn/controllers/admin_menu"
 	main2 "techybat.org/go-vpn/controllers/main_controller"
 	"techybat.org/go-vpn/panel"
-	"techybat.org/go-vpn/sub"
 	msgTool "techybat.org/go-vpn/tools/message"
 	"techybat.org/go-vpn/vars"
 
@@ -66,12 +65,6 @@ func Start(ctx context.Context, cancel context.CancelFunc) {
 	c.AddFunc("@every 1h", func() { msgTool.SendBackup(ctx, b, vars.Get("STORAGE_CHANNEL_ID")) })
 
 	c.Start()
-
-	if vars.Get("env") == "prod" {
-		go sub.ServeHttps(ctx)
-	} else {
-		go sub.ServeHttp(ctx)
-	}
 
 	b.Start(ctx)
 }
