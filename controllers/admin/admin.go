@@ -147,7 +147,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		})
 	}
 
-	if order.HasConfig(db) && (order.Pack.Type == m.SanaeiPack || order.Pack.Type == m.SUIPack) {
+	if order.HasConfig(db) && (order.Pack.Type == m.SanaeiPack || order.Pack.Type == m.SUIPack || order.Pack.Type == m.MarzPack) {
 		nodes[0].Keyboard = [][]dialog.Button{
 			{
 				{

@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/go-telegram/bot"
 	"github.com/google/uuid"
 	"github.com/nrednav/cuid2"
 	ptime "github.com/yaa110/go-persian-calendar"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"techybat.org/go-vpn/marz"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/sui"
 	"techybat.org/go-vpn/tools/qr"
@@ -63,6 +65,11 @@ func (config *Config) ShortLink(db *gorm.DB) (string, string) {
 		clientID, _ := strconv.Atoi(c.SubID)
 		shortLinks, _ := sui.GetSui().GetShortLinks(clientID)
 		shortLink = shortLinks[0]
+	} else if c.Order.Pack.Type == MarzPack {
+		user, _ := c.GetMarzUser()
+		if user != nil {
+			shortLink = user.SubscriptionURL
+		}
 	}
 	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
 	err := qr.GenerateQRLogo(shortLink, vars.Get("LOGO_PATH"), qrPath)
@@ -84,6 +91,11 @@ func (config *Config) SubLink(db *gorm.DB) (string, string) {
 		clientID, _ := strconv.Atoi(config.SubID)
 		client, _ := sui.GetSui().GetClientByID(clientID)
 		subLink, _ = sui.GetSui().GetSubUrl(*client)
+	} else if c.Order.Pack.Type == MarzPack {
+		user, _ := c.GetMarzUser()
+		if user != nil {
+			subLink = user.SubscriptionURL
+		}
 	}
 	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
 	err := qr.GenerateQRLogo(subLink, vars.Get("LOGO_PATH"), qrPath)
@@ -112,6 +124,13 @@ func (config *Config) PanelSubLink(db *gorm.DB) (string, string) {
 				fmt.Println("error: unable to retrieve subUrl from s-ui for panelSubLink", err)
 			}
 		}
+	} else if c.Order.Pack.Type == MarzPack {
+		user, err := c.GetMarzUser()
+		if err != nil {
+			fmt.Println("error: unable to retrieve user from marzneshin for panelSubLink", err)
+		} else {
+			subLink = user.SubscriptionURL
+		}
 	}
 	qrPath := fmt.Sprintf("./%s/%d.jpg", vars.Get("QR_PATH"), c.ID)
 	err := qr.GenerateQRLogo(subLink, vars.Get("LOGO_PATH"), qrPath)
@@ -133,6 +152,11 @@ func (config *Config) Link(db *gorm.DB) string {
 		client, _ := sui.GetSui().GetClientByID(clientID)
 		link, _ := sui.GetSui().GetSubUrl(*client)
 		return link
+	} else if c.Order.Pack.Type == MarzPack {
+		user, _ := c.GetMarzUser()
+		if user != nil {
+			return user.SubscriptionURL
+		}
 	}
 
 	return c.CustomLink
@@ -144,6 +168,11 @@ func (config *Config) JSONLink(db *gorm.DB) string {
 	if c.Order.Pack.Type == SanaeiPack {
 		link, _ := url.JoinPath(fmt.Sprintf("%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_JSON_SUB_PATH"), c.SubID))
 		return link
+	} else if c.Order.Pack.Type == MarzPack {
+		user, _ := c.GetMarzUser()
+		if user != nil {
+			return user.SubscriptionURL + "/json"
+		}
 	} else if c.Order.Pack.Type == SUIPack {
 		clientID, _ := strconv.Atoi(config.SubID)
 		client, _ := sui.GetSui().GetClientByID(clientID)
@@ -173,6 +202,19 @@ func (config *Config) EndDate(db *gorm.DB) (ptime.Time, error) {
 			return ptime.Time{}, err
 		}
 		return ptime.Unix(client.Expiry, 0), nil
+	} else if c.Order.Pack.Type == MarzPack {
+		user, err := c.GetMarzUser()
+		if err != nil {
+			fmt.Println("error: unable to retrieve user from marzneshin for endDate", err)
+			return ptime.Time{}, err
+		}
+		if user.ExpireDate != nil {
+			expireDate, err := time.Parse("2006-01-02T15:04:05.999999", *user.ExpireDate)
+			if err != nil {
+				return ptime.Time{}, err
+			}
+			return ptime.New(expireDate), nil
+		}
 	}
 
 	return ptime.New(c.StartDate.AddDate(0, 0, c.Order.Pack.Period)), nil
@@ -252,6 +294,65 @@ func (config *Config) DepleteSanaei(db *gorm.DB, o Order) error {
 	config.UUID = clientForm.ID
 	res := db.Save(config)
 	return res.Error
+}
+
+func (config *Config) DepleteMarz(db *gorm.DB, o Order) error {
+	user, err := config.GetMarzUser()
+	if err != nil {
+		return err
+	}
+
+	user.Enabled = false
+	_, err = marz.GetMarz().UpdateUser(config.Email, *user)
+	return err
+}
+
+func (config *Config) SetupMarz(db *gorm.DB, o Order) error {
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	if config.Email == "" {
+		username := o.User.Username
+		if len(username) == 0 {
+			config.Email = strings.ReplaceAll(gofakeit.Username(), ".", "_")
+		} else {
+			config.Email = fmt.Sprintf("%s%d", username, gofakeit.IntRange(100, 10000))
+		}
+		config.Email = strings.ToLower(config.Email)
+	}
+
+	gb, mb := o.Pack.TrafficGbMb()
+	user := marz.User{
+		Username:               config.Email,
+		Note:                   fmt.Sprintf("U%d_O%d @%s", o.UserID, o.ID, o.User.Username),
+		DataLimit:              int64(gb*marz.ONE_GB + mb*marz.ONE_MB),
+		DataLimitResetStrategy: marz.ResetStrategyNoReset,
+		ServiceIDs:             []int{o.Pack.ServiceID},
+		Enabled:                true,
+	}
+
+	if o.Pack.Period == 0 {
+		user.ExpireStrategy = marz.ExpireStrategyNever
+	} else {
+		expireDate := config.StartDate.AddDate(0, 0, o.Pack.Period).Format("2006-01-02T15:04:05.999999")
+		user.ExpireStrategy = marz.ExpireStrategyFixedDate
+		user.ExpireDate = &expireDate
+	}
+
+	if _, err := marz.GetMarz().StoreUser(user); err != nil {
+		return err
+	}
+
+	if _, err := marz.GetMarz().ResetUser(user.Username); err != nil {
+		return fmt.Errorf("Trying to reset user '%s' failed: %w", user.Username, err)
+	}
+
+	if res := db.Save(config); res.Error != nil {
+		return res.Error
+	}
+
+	return nil
 }
 
 func (config *Config) SetupSUI(db *gorm.DB, o Order) error {
@@ -369,6 +470,13 @@ func (config *Config) RemainedTraffic(db *gorm.DB) (int, error) {
 			return 0.0, err
 		}
 		return client.RemainedTraffic(), nil
+	} else if c.Order.Pack.Type == MarzPack {
+		user, err := c.GetMarzUser()
+		if err != nil {
+			fmt.Println("error unable to retrieve user from marzneshin for remained traffic", err)
+			return 0.0, err
+		}
+		return user.RemainedTraffic(), nil
 	}
 	return 0, fmt.Errorf("no remained traffic for non-panel configs")
 }
@@ -376,6 +484,10 @@ func (config *Config) RemainedTraffic(db *gorm.DB) (int, error) {
 func (config *Config) GetClient() (panel.Client, error) {
 	panel := panel.GetPanel()
 	return panel.GetClient(config.Email)
+}
+
+func (config *Config) GetMarzUser() (*marz.User, error) {
+	return marz.GetMarz().GetUser(config.Email)
 }
 
 func (config *Config) Sync(db *gorm.DB) error {
@@ -386,9 +498,31 @@ func (config *Config) Sync(db *gorm.DB) error {
 		return c.SyncSanaei(db)
 	case SUIPack:
 		return c.SyncSUI(db)
+	case MarzPack:
+		return c.SyncMarz(db)
 	}
 
 	return nil
+}
+
+func (c *Config) SyncMarz(db *gorm.DB) error {
+	user, err := c.GetMarzUser()
+	if err != nil {
+		return err
+	}
+
+	if user.Enabled {
+		c.Order.Type = ActiveOrder
+	} else {
+		c.Order.Type = DepletedOrder
+	}
+
+	if user.DataLimit != 0 && user.RemainedTraffic() == 0 {
+		c.Order.Type = DepletedOrder
+	}
+
+	c.Order.AdminNote = "آخرین تغییر وضعیت بسته توسط سیستم به صورت خودکار انجام شده است."
+	return db.Save(&c.Order).Error
 }
 
 func (c *Config) SyncSUI(db *gorm.DB) error {

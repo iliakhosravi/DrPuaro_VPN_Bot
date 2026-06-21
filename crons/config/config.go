@@ -12,6 +12,7 @@ import (
 	"github.com/go-telegram/bot"
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/marz"
 	m "techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/sui"
 )
@@ -61,6 +62,7 @@ func getNotifs() *Notifs {
 func NotifyAll(ctx context.Context, b *bot.Bot) {
 	NotifySanaei(ctx, b)
 	NotifySUI(ctx, b)
+	NotifyMarz(ctx, b)
 }
 
 func NotifySUI(ctx context.Context, b *bot.Bot) {
@@ -178,6 +180,66 @@ func NotifySanaei(ctx context.Context, b *bot.Bot) {
 		}
 
 		config.SyncByClient(db, client)
+	}
+	saveNotifs()
+}
+
+func NotifyMarz(ctx context.Context, b *bot.Bot) {
+	db := database.GetDB()
+	var configs []m.Config
+	getNotifs()
+
+	packQuery := db.Model(&m.Pack{}).Select("id").Where("type = ?", m.MarzPack)
+	orderQuery := db.Model(&m.Order{}).Select("id").
+		Where("pack_id in (?)", packQuery).
+		Where("type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).
+		Where("id not in (?)", notifs.Depletions)
+
+	db.Where("order_id in (?)", orderQuery).
+		Preload(clause.Associations).
+		Preload("Order.User").
+		Preload("Order.Pack").
+		Find(&configs)
+
+	mz := marz.GetMarz()
+	for _, config := range configs {
+		user, err := mz.GetUser(config.Email)
+		if err != nil {
+			fmt.Println("Error: unable to retrieve user for notify all. err: ", err)
+			continue
+		}
+
+		notified := false
+		if user.ExpireDate != nil {
+			expireDate, err := time.Parse("2006-01-02T15:04:05.999999", *user.ExpireDate)
+			if err == nil {
+				duration := time.Until(expireDate)
+				daysDuration := int(duration.Hours()) / 24
+				switch {
+				case duration.Hours() <= 0:
+					notifyDepletion(ctx, b, config, true)
+					notified = true
+				case daysDuration <= 7:
+					notifyEndDays(ctx, b, config, daysDuration)
+				}
+			}
+		}
+
+		if !notified && user.DataLimit != 0 {
+			remainedTraffic := user.RemainedTraffic()
+			switch {
+			case remainedTraffic <= 0:
+				notifyDepletion(ctx, b, config, false)
+			case remainedTraffic <= 200:
+				notifyRemainedTraffic(ctx, b, config, 200)
+			case remainedTraffic <= 500:
+				notifyRemainedTraffic(ctx, b, config, 500)
+			case remainedTraffic <= 1000:
+				notifyRemainedTraffic(ctx, b, config, 1000)
+			}
+		}
+
+		config.SyncMarz(db)
 	}
 	saveNotifs()
 }

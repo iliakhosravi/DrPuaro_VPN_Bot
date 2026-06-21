@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/marz"
 	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
 	bp "techybat.org/go-vpn/widgets/buttonpage"
@@ -128,6 +129,25 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		return
 	}
 
+	if pack.Type == models.MarzPack {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "درحال دریافت سرویس ها از پنل...",
+		})
+
+		svcBtns := createServicesBtns(passPack(onPackServiceSubmit, pack))
+		if len(svcBtns) > 0 {
+			servicesPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از سرویس های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل مرزنشین شما استخراج شده است."), svcBtns, 5, true)
+			servicesPage.Show(ctx, b, form.ChatID)
+		} else {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: form.ChatID,
+				Text:   "خطا! هیچگونه سرویسی در پنل شما برای انتخاب ثبت نشده است!",
+			})
+		}
+		return
+	}
+
 	txtMsg := "افزودن بسته با موفقیت انجام شد"
 
 	if err := pack.Store(database.GetDB()); err != nil {
@@ -143,6 +163,29 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 func onPackInboundSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
 	inboundID, _ := strconv.Atoi(update.CallbackQuery.Data)
 	pack.InboundID = inboundID
+
+	txtMsg := "بسته با موفقیت ثبت شد"
+
+	if err := pack.Store(database.GetDB()); err != nil {
+		txtMsg = "خطایی پیش آمده"
+	}
+
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:      chatID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		ReplyMarkup: nil,
+	})
+}
+
+func onPackServiceSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack) {
+	serviceID, _ := strconv.Atoi(update.CallbackQuery.Data)
+	pack.ServiceID = serviceID
 
 	txtMsg := "بسته با موفقیت ثبت شد"
 
@@ -401,6 +444,10 @@ func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 				Text:         "S-UI",
 				CallbackData: string(models.SUIPack),
 			},
+			{
+				Text:         "مرزنشین",
+				CallbackData: string(models.MarzPack),
+			},
 		},
 	}
 }
@@ -461,6 +508,25 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 		return
 	}
 
+	if pack.Type == models.MarzPack {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: form.ChatID,
+			Text:   "درحال دریافت سرویس ها از پنل...",
+		})
+		svcBtns := createServicesBtns(passPack(onPackServiceSubmit, pack))
+		if len(svcBtns) > 0 {
+			servicesPage := bp.CreateButtonPage(bot.EscapeMarkdown("کدام یک از سرویس های زیر به کاربر اختصاص یابد؟\nتوجه کنید که این لیست از پنل مرزنشین شما استخراج شده است."), svcBtns, 5, true)
+			_, err := servicesPage.Show(ctx, b, form.ChatID)
+			fmt.Println("Error, unable to show services buttonpage: ", err)
+		} else {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: form.ChatID,
+				Text:   "خطا! هیچگونه سرویسی در پنل شما برای انتخاب ثبت نشده است!",
+			})
+		}
+		return
+	}
+
 	txtMsg := "ویرایش دسته بندی با موفقیت انجام شد"
 	if err := pack.Store(database.GetDB()); err != nil {
 		txtMsg = "خطایی پیش آمده"
@@ -489,6 +555,23 @@ func createInboundsBtns(handler bot.HandlerFunc) []dialog.Button {
 			Text:            inbound.Remark,
 			CallbackHandler: handler,
 			CallbackData:    fmt.Sprint(inbound.ID),
+		}
+
+		btns = append(btns, btn)
+	}
+	return btns
+}
+
+func createServicesBtns(handler bot.HandlerFunc) []dialog.Button {
+	btns := []dialog.Button{}
+	mz := marz.GetMarz()
+	services, _ := mz.GetServices(1, 50)
+	for _, service := range services {
+		btn := dialog.Button{
+			ID:              fmt.Sprint(service.ID),
+			Text:            service.Name,
+			CallbackHandler: handler,
+			CallbackData:    fmt.Sprint(service.ID),
 		}
 
 		btns = append(btns, btn)

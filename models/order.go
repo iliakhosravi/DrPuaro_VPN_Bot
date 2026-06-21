@@ -92,6 +92,10 @@ func (order *Order) Verify(db *gorm.DB, adminNote, customLink string) error {
 			err = config.SetupSUI(tx, o)
 		}
 
+		if o.Pack.Type == MarzPack {
+			err = config.SetupMarz(tx, o)
+		}
+
 		if err != nil {
 			return fmt.Errorf("unable to setup with panel: %w", err)
 		}
@@ -131,6 +135,10 @@ func (order *Order) Deplete(db *gorm.DB) error {
 
 		if o.Pack.Type == SUIPack {
 			o.Config(tx).DepleteSUI(tx, o)
+		}
+
+		if o.Pack.Type == MarzPack {
+			o.Config(tx).DepleteMarz(tx, o)
 		}
 		if result := db.Save(order); result.RowsAffected == 0 {
 			return fmt.Errorf("unable to deplete order: %v", result.Error)

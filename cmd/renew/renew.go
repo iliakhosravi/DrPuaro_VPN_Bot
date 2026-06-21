@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/marz"
 	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/panel"
 	"techybat.org/go-vpn/sui"
@@ -167,6 +168,23 @@ func renewConfig(db *gorm.DB, config *models.Config, newEndDate time.Time) error
 		}
 
 		fmt.Printf("  ✓ Updated S-UI config %d (client ID: %s)\n", c.ID, c.SubID)
+	} else if c.Order.Pack.Type == models.MarzPack {
+		mz := marz.GetMarz()
+		user, err := mz.GetUser(c.Email)
+		if err != nil {
+			return fmt.Errorf("unable to get user from Marzneshin: %w", err)
+		}
+
+		expireDate := newEndDate.Format("2006-01-02T15:04:05.999999")
+		user.ExpireStrategy = marz.ExpireStrategyFixedDate
+		user.ExpireDate = &expireDate
+		user.Enabled = true
+
+		if _, err := mz.UpdateUser(c.Email, *user); err != nil {
+			return fmt.Errorf("unable to update user in Marzneshin: %w", err)
+		}
+
+		fmt.Printf("  ✓ Updated Marzneshin config %d (username: %s)\n", c.ID, c.Email)
 	} else {
 		// For custom configs, update the start date to reflect the new period
 		daysToAdd := int(time.Until(newEndDate).Hours() / 24)
