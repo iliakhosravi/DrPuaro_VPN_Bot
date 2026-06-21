@@ -336,7 +336,7 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 		},
 		{
 			Name:        "period",
-			MessageText: fmt.Sprintf("دوره زمانی بسته بر حسب روز چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید\nمقدار فعلی:%v", pack.Period),
+			MessageText: fmt.Sprintf("دوره زمانی بسته بر حسب روز چقدر است؟ لطفا صرفا عدد صحیح وارد نمایید\nمقدار فعلی:%v", pack.Period),
 			Validator:   models.PackValidator("period"),
 			IsSkippable: true,
 			Value:       fmt.Sprint(pack.Period),

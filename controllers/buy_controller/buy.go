@@ -42,7 +42,7 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 						Text: "کیف پول", NodeID: "wallet",
 					},
 					{
-						ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
+						ID: "card", Text: "کارت به کارت", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
 					},
 				},
 			},
