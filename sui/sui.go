@@ -198,7 +198,6 @@ func (sui Sui) GetClientByID(id int) (*Client, error) {
 	clientStr := parsed.Get(fmt.Sprintf(`obj.clients.#(id==%d)`, id)).Raw
 	err = json.Unmarshal([]byte(clientStr), &client)
 	if err != nil {
-		fmt.Printf("ATTENTION! ATTENTION!\n\n%s\n\nTHANK YOU!\n", clientStr)
 		return nil, err
 	}
 
