@@ -1,68 +1,16 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-
-	"techybat.org/go-vpn/controllers/admin_menu"
-	main2 "techybat.org/go-vpn/controllers/main_controller"
-	"techybat.org/go-vpn/panel"
-	"techybat.org/go-vpn/sub"
-	msgTool "techybat.org/go-vpn/tools/message"
-	"techybat.org/go-vpn/vars"
-
-	"github.com/go-telegram/bot"
-	"github.com/joho/godotenv"
-	"github.com/robfig/cron/v3"
-	configCrons "techybat.org/go-vpn/crons/config"
-	"techybat.org/go-vpn/database"
-	"techybat.org/go-vpn/middlewares/auth"
+	"techybat.org/go-vpn/cmd"
+	"techybat.org/go-vpn/cmd/bot"
+	"techybat.org/go-vpn/cmd/renew"
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	// Register subcommands
+	cmd.RootCmd.AddCommand(bot.StartCmd)
+	cmd.RootCmd.AddCommand(renew.RenewCmd)
 
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	database.Setup()
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	telegramBotToken := vars.Get("TELEGRAM_BOT_TOKEN")
-
-	opts := []bot.Option{
-		bot.WithMiddlewares(auth.UserMiddleware, auth.TrustedMiddleware),
-		bot.WithDefaultHandler(main2.MainController),
-		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(admin_menu.AdminController)),
-	}
-
-	b, err := bot.New(telegramBotToken, opts...)
-
-	if err != nil {
-		fmt.Println("Error in creating bot: ", err)
-		cancel()
-	}
-
-	c := cron.New()
-
-	c.AddFunc("@every 5m", func() { configCrons.NotifyAll(ctx, b) })
-	// c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
-	c.AddFunc("@every 30m", panel.Setup)
-	c.AddFunc("@every 1h", func() { msgTool.SendBackup(ctx, b, vars.Get("STORAGE_CHANNEL_ID")) })
-
-	c.Start()
-
-	if vars.Get("env") == "prod" {
-		go sub.ServeHttps(ctx)
-	} else {
-		go sub.ServeHttp(ctx)
-	}
-
-	b.Start(ctx)
+	// Execute the CLI
+	cmd.Execute()
 }

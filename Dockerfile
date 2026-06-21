@@ -8,21 +8,11 @@ WORKDIR /app
 
 COPY go.mod go.sum ./
 
-# Copy the passed secrets into Docker's fs to be used by ssh
-RUN mkdir ~/.ssh
-RUN echo "Host github.com\n\tStrictHostKeyChecking no\n" >> /root/.ssh/config
-RUN --mount=type=secret,id=idrsa cp /run/secrets/idrsa ~/.ssh/id_rsa
-RUN --mount=type=secret,id=idrsapub cp /run/secrets/idrsapub ~/.ssh/id_rsa.pub
-
-# Configure git to use the ssh-keys
-RUN git config --global --add url."ssh://git@github.com".insteadOf "https://github.com"
-ENV GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
-
 RUN go mod download
 
 COPY . .
 
-RUN go build -o /app/techybat-bot
+RUN go build -o /app/govpn
 
 # --- Final Stage ---
 # Using the original alpine:latest image
@@ -43,4 +33,4 @@ COPY --from=builder /app /app
 # This ensures your final minimal image has the same root CAs as the build env.
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT [ "/app/techybat-bot" ]
+ENTRYPOINT [ "/app/govpn", "start" ]
