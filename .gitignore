@@ -13,3 +13,5 @@ notifs.json
 vars/vars.go
 ./backup
 /backup
+.env.techy
+.env.ultra
