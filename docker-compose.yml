@@ -32,6 +32,7 @@ services:
       MYSQL_HOST: db
     volumes:
       - ./notifs.json:/app/notifs.json
+      - ./qr:/app/qr
     # ports:
     # - "${SUB_PORT}:${SUB_PORT}"
     restart: unless-stopped
