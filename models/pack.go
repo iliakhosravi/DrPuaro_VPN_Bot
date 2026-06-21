@@ -120,7 +120,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.Price, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %s مدت\nمحدودیت کاربر: %s\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.Price, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -188,6 +188,9 @@ func GetPackPeriods(packs []Pack) map[int][]Pack {
 }
 
 func StringPeriod(period int) string {
+	if period == 0 {
+		return "نامحدود"
+	}
 	result := ""
 	years := period / 365
 	months := period / 30

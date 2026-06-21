@@ -142,7 +142,7 @@ func (config *Config) JSONLink(db *gorm.DB) string {
 	var c Config
 	db.Preload(clause.Associations).Preload("Order.Pack").Find(&c, config.ID)
 	if c.Order.Pack.Type == SanaeiPack {
-		link, _ := url.JoinPath(fmt.Sprintf("http://%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_JSON_SUB_PATH"), c.SubID))
+		link, _ := url.JoinPath(fmt.Sprintf("%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_JSON_SUB_PATH"), c.SubID))
 		return link
 	} else if c.Order.Pack.Type == SUIPack {
 		clientID, _ := strconv.Atoi(config.SubID)
@@ -330,6 +330,10 @@ func (config *Config) SetupSanaei(db *gorm.DB, o Order) error {
 		TgID:       fmt.Sprint(o.User.TelID),
 		SubID:      config.SubID,
 		LimitIP:    int(o.Pack.LimitIP),
+	}
+
+	if o.Pack.Period == 0 {
+		clientForm.ExpiryTime = 0
 	}
 
 	if _, err := p.StoreClient(o.Pack.InboundID, clientForm); err != nil {
