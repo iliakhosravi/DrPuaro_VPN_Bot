@@ -13,7 +13,7 @@ import (
 )
 
 func SendBackup(ctx context.Context, b *bot.Bot, chatID any) {
-	fileName := fmt.Sprintf("./bot_%s.sql", ptime.Now().Format("yyyy_MM_d_HH_mm"))
+	fileName := fmt.Sprintf("bot_%s.sql", ptime.Now().Format("yyyy_MM_d_HH_mm"))
 	backupPath := fmt.Sprintf("./backup/%s", fileName)
 	err := database.DumpMySQL(backupPath)
 	if err == nil {
