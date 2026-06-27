@@ -54,7 +54,7 @@ func Start(ctx context.Context, cancel context.CancelFunc) {
 
 	c.AddFunc("@every 5m", func() { configCrons.NotifyAll(ctx, b) })
 	// c.AddFunc("@every 30m", func() { configCrons.NotifyAll(ctx, b) })
-	c.AddFunc("@every 30m", panel.Setup)
+	c.AddFunc("@every 30m", panel.RevokePanel)
 	c.AddFunc("@every 1h", func() { msgTool.SendBackup(ctx, b, vars.Get("STORAGE_CHANNEL_ID")) })
 
 	c.Start()

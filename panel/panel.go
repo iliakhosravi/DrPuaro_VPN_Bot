@@ -1,8 +1,6 @@
 package panel
 
 import (
-	"sync"
-
 	"github.com/go-resty/resty/v2"
 	"techybat.org/go-vpn/vars"
 )
@@ -17,16 +15,19 @@ type Panel struct {
 }
 
 var (
-	panel     *Panel
-	panelOnce sync.Once
+	panel *Panel
 )
 
 func GetPanel() *Panel {
-	panelOnce.Do(func() {
+	if panel == nil {
 		Setup()
-	})
+	}
 
 	return panel
+}
+
+func RevokePanel() {
+	panel = nil
 }
 
 func Setup() {
