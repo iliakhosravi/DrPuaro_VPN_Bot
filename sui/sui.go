@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/tidwall/gjson"
@@ -22,7 +21,7 @@ func GetSui() *Sui {
 	token := vars.Get("SUI_API_TOKEN")
 	client := resty.New().SetBaseURL(url)
 	client.SetHeader("Token", token)
-	if os.Getenv("env") == "dev" {
+	if vars.Get("env") == "dev" {
 		client.SetDebug(true)
 	}
 	return &Sui{
