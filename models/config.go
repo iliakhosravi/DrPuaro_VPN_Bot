@@ -371,15 +371,19 @@ func (config *Config) SetupSUI(db *gorm.DB, o Order) error {
 	traffic := int64(gb*sui.ONE_GB + mb*sui.ONE_MB)
 	gen, _ := cuid2.Init(cuid2.WithLength(8))
 	clientName := gen()
-	desc := fmt.Sprintf("U%d_O%d @%s", o.UserID, o.ID, o.User.Username)
-	client := sui.InitClient(
-		clientName,
-		baseClient.Inbounds,
-		traffic,
-		config.StartDate.AddDate(0, 0, o.Pack.Period),
-		desc,
-		o.Pack.ClientName,
-	)
+desc := fmt.Sprintf("U%d_O%d @%s", o.UserID, o.ID, o.User.Username)
+expiry := config.StartDate.AddDate(0, 0, o.Pack.Period)
+if o.Pack.Period == 0 {
+	expiry = time.Unix(0, 0)
+}
+client := sui.InitClient(
+	clientName,
+	baseClient.Inbounds,
+	traffic,
+	expiry,
+	desc,
+	o.Pack.ClientName,
+)
 
 	if len(config.SubID) > 0 {
 		subId, err := strconv.ParseUint(config.SubID, 0, 0)
