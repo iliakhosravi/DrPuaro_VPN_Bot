@@ -91,12 +91,16 @@ func NotifySUI(ctx context.Context, b *bot.Bot) {
 			continue
 		}
 
-		clientID, _ := strconv.Atoi(config.SubID)
-		client, err := s.GetClientByID(clientID)
-		if err != nil {
-			fmt.Println("Error: unable to retrieve client for notify all. err: ", err)
-			continue
-		}
+clientID, err := strconv.Atoi(config.SubID)
+if err != nil {
+	fmt.Println("Error: invalid client id in config.SubID: ", err)
+	continue
+}
+client, err := s.GetClientByID(clientID)
+if err != nil {
+	fmt.Println("Error: unable to retrieve client for notify all. err: ", err)
+	continue
+}
 		expiryTime := time.Unix(client.Expiry, 0)
 		duration := time.Until(expiryTime)
 		daysDuration := int(duration.Hours()) / 24
