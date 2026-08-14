@@ -547,9 +547,9 @@ func (c *Config) SyncSUI(db *gorm.DB) error {
 		c.Order.Type = DepletedOrder
 	}
 
-	if client.RemainedTraffic() == 0 {
-		c.Order.Type = DepletedOrder
-	}
+if client.RemainedTraffic() <= 0 {
+	c.Order.Type = DepletedOrder
+}
 
 	c.Order.AdminNote = "آخرین تغییر وضعیت بسته توسط سیستم به صورت خودکار انجام شده است."
 	return db.Save(&c.Order).Error
