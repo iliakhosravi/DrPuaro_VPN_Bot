@@ -22,7 +22,7 @@ type PackEditHandler func(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 
 func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
-	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard()
+	catKeyboard, typeKeyboard, currencyKeyboard := makeCatKeyboard(db), makeTypeKeyboard(), makeCurrencyKeyboard(db)
 
 	fields := []form.Field{
 		{
@@ -48,8 +48,15 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Validator:   models.PackValidator("limitIP"),
 		},
 		{
+			Name:        "currency",
+			MessageText: "قیمت بسته بر اساس چه ارزی است؟",
+			Type:        form.ButtonField,
+			Keyboard:    currencyKeyboard,
+			Validator:   models.PackValidator("currency_id"),
+		},
+		{
 			Name:        "price",
-			MessageText: "قیمت بسته برحسب تومان چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
+			MessageText: "قیمت بسته چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.",
 			Validator:   models.PackValidator("price"),
 		},
 		{
@@ -95,6 +102,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
 	categoryID, _ := strconv.ParseUint(form.FindField("category").Value, 10, 0)
+	currencyID, _ := strconv.ParseUint(form.FindField("currency").Value, 10, 0)
 	packType := models.PackType(form.FindField("type").Value)
 	clientName := form.FindField("client_name").Value
 	title := form.FindField("title").Value
@@ -108,6 +116,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		Title:      title,
 		LimitIP:    uint(limitIP),
 		ClientName: clientName,
+		CurrencyID: uint(currencyID),
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -212,7 +221,7 @@ func onCancelPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 func EditPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	var packs []models.Pack
-	db.Find(&packs)
+	db.Preload(clause.Associations).Find(&packs)
 
 	buttons := []dialog.Button{}
 	for _, pack := range packs {
@@ -358,9 +367,9 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	packID := update.CallbackQuery.Data
 	var pack models.Pack
-	db.Preload("Category").Order("created_at desc").Find(&pack, packID)
+	db.Preload(clause.Associations).Order("created_at desc").Find(&pack, packID)
 
-	catKeyboard, typeKeyboard := makeCatKeyboard(db), makeTypeKeyboard()
+	catKeyboard, typeKeyboard, currencyKeyboard := makeCatKeyboard(db), makeTypeKeyboard(), makeCurrencyKeyboard(db)
 
 	fields := []form.Field{
 		{
@@ -392,8 +401,17 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			Value:       fmt.Sprint(pack.LimitIP),
 		},
 		{
+			Name:        "currency",
+			MessageText: fmt.Sprintf("قیمت بسته بر اساس چه ارزی است؟ مقدار فعلی:%s", pack.Currency.Name),
+			Type:        form.ButtonField,
+			Keyboard:    currencyKeyboard,
+			Validator:   models.PackValidator("currency_id"),
+			IsSkippable: true,
+			Value:       fmt.Sprint(pack.CurrencyID),
+		},
+		{
 			Name:        "price",
-			MessageText: fmt.Sprintf("قیمت بسته برحسب تومان چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید.\nمقدار فعلی:%v", pack.Price),
+			MessageText: fmt.Sprintf("قیمت بسته چقدر است؟ لطفا صرفا عدد صحیح مثبت وارد نمایید. مقدار فعلی:%d", pack.Price),
 			Validator:   models.PackValidator("price"),
 			IsSkippable: true,
 			Value:       fmt.Sprint(pack.Price),
@@ -452,6 +470,23 @@ func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 	}
 }
 
+func makeCurrencyKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+	var currencies []models.Currency
+	db.Find(&currencies)
+	var curKeyboard = [][]tmodels.InlineKeyboardButton{}
+
+	for _, currency := range currencies {
+		curKeyboard = append(curKeyboard, []tmodels.InlineKeyboardButton{
+			{
+				Text:         currency.Name,
+				CallbackData: strconv.FormatUint(uint64(currency.ID), 10),
+			},
+		})
+	}
+
+	return curKeyboard
+}
+
 func makeCatKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
 	var categories []models.Category
 	db.Find(&categories)
@@ -473,6 +508,7 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	form := ctx.Value(form.FORM_KEY).(*form.Form)
 	traffic, _ := strconv.Atoi(form.FindField("traffic").Value)
 	period, _ := strconv.Atoi(form.FindField("period").Value)
+	currencyID, _ := strconv.ParseUint(form.FindField("currency").Value, 10, 0)
 	price, _ := strconv.Atoi(form.FindField("price").Value)
 	categoryID, err := strconv.ParseUint(form.FindField("category").Value, 10, 0)
 	limitIP, _ := strconv.ParseUint(form.FindField("limitIP").Value, 10, 0)
@@ -483,6 +519,7 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	pack.Type = models.PackType(form.FindField("type").Value)
 	pack.Title = form.FindField("title").Value
 	pack.LimitIP = uint(limitIP)
+	pack.CurrencyID = uint(currencyID)
 
 	if err == nil {
 		pack.CategoryID = uint(categoryID)

@@ -104,6 +104,56 @@ func (user *User) BuyPackByCard(db *gorm.DB, pack *Pack, msgID int) (*Order, err
 	return &order, err
 }
 
+func (user *User) RevivePackByCrypto(db *gorm.DB, pack *Pack, configID any) (*Order, error) {
+	var order Order
+	err := db.Transaction(func(tx *gorm.DB) error {
+		order = Order{
+			UserID:  user.ID,
+			PackID:  pack.ID,
+			Type:    PendingOrder,
+			PayType: CryptoPay,
+		}
+
+		if err := order.CreateOrder(tx); err != nil {
+			return err
+		}
+
+		var config Config
+		if res := tx.Find(&config, configID); res.Error != nil {
+			return res.Error
+		}
+
+		config.OrderID = order.ID
+		if res := tx.Save(&config); res.Error != nil {
+			return res.Error
+		}
+
+		return nil
+	})
+
+	return &order, err
+}
+
+func (user *User) BuyPackByCrypto(db *gorm.DB, pack *Pack) (*Order, error) {
+	var order Order
+	err := db.Transaction(func(tx *gorm.DB) error {
+		order = Order{
+			UserID:  user.ID,
+			PackID:  pack.ID,
+			Type:    PendingOrder,
+			PayType: CryptoPay,
+		}
+
+		if err := order.CreateOrder(tx); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return &order, err
+}
+
 func (user *User) RevivePackByCharge(db *gorm.DB, pack *Pack, configID any) (*Order, error) {
 	if user.Charge < uint64(pack.Price) {
 		return nil, fmt.Errorf("insufficient balance")

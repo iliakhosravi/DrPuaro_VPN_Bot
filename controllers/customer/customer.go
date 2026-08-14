@@ -23,7 +23,7 @@ func ActiveOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, []m.OrderType{m.ActiveOrder}, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.ActiveOrder}, "Pack", "Pack.Currency")
 
 	buttons := createOrderButtons(orders, showOrderHandler)
 
@@ -36,7 +36,7 @@ func DepletedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upda
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, []m.OrderType{m.DepletedOrder}, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.DepletedOrder}, "Pack", "Pack.Currency")
 
 	buttons := createOrderButtons(orders, showDepletedOrderHandler)
 
@@ -49,7 +49,7 @@ func DismissedOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Upd
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, []m.OrderType{m.DismissedOrder}, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.DismissedOrder}, "Pack", "Pack.Currency")
 
 	buttons := createOrderButtons(orders, showOrderHandler)
 
@@ -62,7 +62,7 @@ func PendingOrdersHandler(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	user := ctx.Value(auth.UserKey).(m.User)
 
-	orders := user.RetrieveOrders(db, []m.OrderType{m.PendingOrder, m.PendLinkOrder}, "Pack")
+	orders := user.RetrieveOrders(db, []m.OrderType{m.PendingOrder, m.PendLinkOrder}, "Pack", "Pack.Currency")
 
 	buttons := createOrderButtons(orders, showOrderHandler)
 
@@ -80,7 +80,7 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	orderID := update.CallbackQuery.Data
 	var order m.Order
-	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
+	db.Preload("Pack").Preload("Pack.Category").Preload("Pack.Currency").Find(&order, orderID)
 
 	txtMsg := order.UserStr(db)
 	if _, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -105,7 +105,7 @@ func showDepletedOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.U
 	db := database.GetDB()
 	orderID := update.CallbackQuery.Data
 	var order m.Order
-	db.Preload("Pack").Preload("Pack.Category").Find(&order, orderID)
+	db.Preload("Pack").Preload("Pack.Category").Preload("Pack.Currency").Find(&order, orderID)
 
 	var kb tmodels.ReplyMarkup
 	if (order.Config(db).ID > 0) && order.Type != m.ActiveOrder {

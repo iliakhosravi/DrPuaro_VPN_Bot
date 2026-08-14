@@ -26,7 +26,7 @@ var (
 func BuildMainKeyboard(b *bot.Bot) {
 	mainKB = reply.New(b, reply.ResizableKeyboard()).
 		Button("🛍خرید بسته", b, bot.MatchTypeExact, handleBuy).
-		Button("👨‍💻بسته های خریداری شده", b, bot.MatchTypeExact, handleBuyList).
+		Button("👨‍💻بسته ها", b, bot.MatchTypeExact, handleBuyList).
 		Row().
 		Button("💰کیف پول", b, bot.MatchTypeExact, customerController.BalanceHandler).
 		Button("💳 شارژ اکانت", b, bot.MatchTypeExact, buy_controller.ChargeHandler)

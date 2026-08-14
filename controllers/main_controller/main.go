@@ -73,7 +73,7 @@ func NewMainDialog() []dialog.Node {
 			Keyboard: [][]dialog.Button{
 				{
 					{Text: "خرید بسته", NodeID: "categories"},
-					{Text: "بسته های خریداری شده", NodeID: "orders"},
+					{Text: "بسته ها", NodeID: "orders"},
 				},
 				{
 					{ID: "balance", Text: "کیف پول", CallbackHandler: customerController.BalanceHandler},

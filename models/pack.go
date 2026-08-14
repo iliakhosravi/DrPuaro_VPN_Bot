@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/vars"
 	"techybat.org/go-vpn/widgets/form"
 )
@@ -31,6 +33,8 @@ type Pack struct {
 	Traffic    int        `json:"traffic"` //Gigabytes
 	Period     int        `json:"period"`  //Days
 	Price      int        `json:"price"`   //Toman
+	CurrencyID uint       `json:"currency_id"`
+	Currency   Currency   `json:"-"`
 	CategoryID uint       `json:"category_id"`
 	Category   Category   `json:"category"`
 	Status     PackStatus `json:"status" gorm:"default:undefined"`
@@ -46,7 +50,7 @@ func (pack *Pack) Migrate(db *gorm.DB) {
 }
 
 func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
-	db.Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
+	db.Preload(clause.Associations).Preload("Currency").Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
 }
 
 func (pack Pack) Name() string {
@@ -68,7 +72,14 @@ func (pack Pack) String() string {
 	if pack.Title != "" {
 		return pack.Title
 	}
-	return fmt.Sprintf("%s | %s | %d تومان | %s کاربره", pack.TrafficString(), StringPeriod(pack.Period), pack.Price, pack.UserLimitStr())
+	return fmt.Sprintf("%s | %s | %s کاربره | %s %s", pack.TrafficString(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit)
+}
+
+func (pack Pack) GetPrice() decimal.Decimal {
+	price := decimal.NewFromInt(int64(pack.Price))
+	unitFactor := decimal.NewFromInt(int64(pack.Currency.UnitFactor))
+	price = price.Div(unitFactor)
+	return price
 }
 
 func (pack Pack) TrafficString() string {
@@ -122,7 +133,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %s مدت\nمحدودیت کاربر: %s\nقیمت: %d تومان\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), StringPeriod(pack.Period), pack.UserLimitStr(), pack.Price, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -147,6 +158,8 @@ func PackValidator(fieldName string) form.Validator {
 		var err error
 		switch fieldName {
 		case "category_id":
+			_, err = strconv.ParseUint(value, 10, 0)
+		case "currency_id":
 			_, err = strconv.ParseUint(value, 10, 0)
 		case "type":
 			if value != string(CustomPack) && value != string(SanaeiPack) && value != string(SUIPack) && value != string(MarzPack) {

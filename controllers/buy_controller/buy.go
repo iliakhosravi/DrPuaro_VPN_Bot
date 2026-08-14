@@ -8,8 +8,11 @@ import (
 
 	"github.com/go-telegram/bot"
 	tmodels "github.com/go-telegram/bot/models"
+	"github.com/shopspring/decimal"
+	paym "github.com/sinasadeghi83/go-crypto-paywall/models"
 	"github.com/sinasadeghi83/go-telegram-bot-ui/dialog"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
 	"techybat.org/go-vpn/middlewares/auth"
 	"techybat.org/go-vpn/models"
@@ -26,26 +29,41 @@ func BuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	packId := dataArr[0]
 	var pack models.Pack
 	var packMsg string
-	if result := db.Where("status = ?", models.ActivePack).First(&pack, packId); result.RowsAffected == 0 {
+	if result := db.Where("status = ?", models.ActivePack).Preload(clause.Associations).Find(&pack, packId); result.RowsAffected == 0 {
 		packMsg = "این بسته در دسترس نمی باشد"
 	} else {
 		packMsg = fmt.Sprintf("شما بسته %s را برای خرید انتخاب کرده اید.\nمشخصات:%s", pack.String(), pack.String())
 	}
 
+	buyOpts := [][]dialog.Button{
+		{
+			{
+				Text: "کیف پول", NodeID: "wallet",
+			},
+		},
+	}
+
+	if card := models.GetActiveCard(db); card.Status == (models.ActiveCard) {
+		buyOpts = append(buyOpts, ([]dialog.Button{
+			{
+				ID: "card", Text: "واریز به حساب", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
+			},
+		}))
+	}
+
+	if res := db.Find(&paym.CryptoWallet{}, "status = 'active'"); res.RowsAffected > 0 {
+		buyOpts = append(buyOpts, ([]dialog.Button{
+			{
+				ID: "crypto", Text: "واریز رمزارزی", CallbackHandler: CryptoBuyController, CallbackData: update.CallbackQuery.Data,
+			},
+		}))
+	}
+
 	nodes := []dialog.Node{
 		{
-			ID:   "buy-options",
-			Text: "از چه طریقی می خواهید پرداخت انجام شود؟",
-			Keyboard: [][]dialog.Button{
-				{
-					{
-						Text: "کیف پول", NodeID: "wallet",
-					},
-					{
-						ID: "card", Text: "کارت به کارت", CallbackHandler: CardBuyController, CallbackData: update.CallbackQuery.Data,
-					},
-				},
-			},
+			ID:       "buy-options",
+			Text:     "از چه طریقی می خواهید پرداخت انجام شود؟",
+			Keyboard: buyOpts,
 		},
 		{
 			ID:   "wallet",
@@ -121,6 +139,49 @@ func WalletBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update
 
 	msgTool.SendPanelSubLink(ctx, b, chatID, *order)
 
+}
+
+func CryptoBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+	db := database.GetDB()
+	user := ctx.Value(auth.UserKey).(models.User)
+	chatID := update.CallbackQuery.Message.Message.Chat.ID
+
+	dataArr := strings.Split(update.CallbackQuery.Data, "_")
+	packId := dataArr[0]
+	var configID string
+	if len(dataArr) > 1 {
+		configID = dataArr[1]
+	}
+
+	var pack models.Pack
+	db.First(&pack, packId)
+
+	var order *models.Order
+	var err error
+	var txtMsg string
+	if len(dataArr) > 1 {
+		order, err = user.RevivePackByCrypto(db, &pack, configID)
+	} else {
+		order, err = user.BuyPackByCrypto(db, &pack)
+	}
+
+	if err != nil {
+		txtMsg = "خطایی پیش آمده"
+	} else {
+		txtMsg = fmt.Sprintf("سفارش شما ایجاد شد.\nاطلاعات سفارش:%s", order.UserStr(db))
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   txtMsg,
+	})
+
+	b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: update.CallbackQuery.Message.Message.ID,
+	})
+
+	msgTool.SendCryptoLink(ctx, b, chatID, order)
 }
 
 func CardBuyController(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
@@ -211,25 +272,18 @@ func onCancelRecipt(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 func ChargeHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	chatID := update.Message.Chat.ID
 	userID := update.Message.From.ID
-	db := database.GetDB()
-	var card models.Card = models.GetActiveCard(db)
-	txtMsg := "جهت پرداخت مبلغ ذکر شده را به شماره کارت زیر واریز کرده و سپس تصویری از فیش واریزی را در یک پیام ارسال کنید. پس از این مرحله شارژ شما در وضعیت نیاز به تایید قرار گرفته و با تایید نهایی از سوی ادمین به صورت خودکار اکانت شما شارژ خواهد شد."
-	if (card != models.Card{}) {
-		txtMsg = fmt.Sprintf("%s\nشماره کارت: %s\nبه نام: %s", txtMsg, card.Number, card.Fullname)
-	} else {
-		txtMsg = "خطایی پیش آمده"
-	}
+	coinsKeyboard := createCoinsKeyboard(database.GetDB())
 	fields := []form.Field{
 		{
 			Name:        "amount",
-			MessageText: "میزانی که می خواهید شارژ کنید را به تومان وارد کنید.",
-			Validator:   models.MoneyValidator,
+			MessageText: "میزانی که می خواهید شارژ کنید را به دلار وارد کنید.",
+			Validator:   models.DollarValidator,
 		},
 		{
-			Name:          "receipt",
-			Type:          form.CustomTextField,
-			MessageText:   txtMsg,
-			CustomHandler: onChargeReceipt,
+			Name:        "coin",
+			MessageText: "یکی از رمزارز های زیر را انتخاب کنید",
+			Type:        form.ButtonField,
+			Keyboard:    coinsKeyboard,
 		},
 	}
 	form := form.CreateForm("انصراف", fields, chatID, userID, onSubmitCharge, onCancelCharge, nil)
@@ -240,62 +294,45 @@ func onSubmitCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	db := database.GetDB()
 	user := ctx.Value(auth.UserKey).(models.User)
 	form := ctx.Value(form.FORM_KEY).(*form.Form)
-	amount, _ := strconv.ParseUint(form.FindField("amount").Value, 0, 0)
-	msgID, _ := strconv.Atoi(form.FindField("receipt").Value)
+	amount, _ := decimal.NewFromString(form.FindField("amount").Value)
+	coinID, _ := strconv.ParseUint(form.FindField("coin").Value, 10, 0)
 
 	chargeOrder := models.ChargeOrder{
 		UserID: user.ID,
-		Amount: uint(amount),
+		Amount: models.Decimal{amount},
 		Type:   models.PendingCharge,
+		CoinID: uint(coinID),
 	}
 
-	txtMsg := "درخواست شارژ شما با موفقیت ثبت شد. کد رسید: "
-	err := db.Transaction(func(tx *gorm.DB) error {
-		if result := tx.Create(&chargeOrder); result.Error != nil {
-			return result.Error
-		}
-		receipt, err := chargeOrder.AddReceipt(tx, msgID)
-		if err != nil {
-			return err
-		}
+	chargeOrder.CreateInvoice(db)
 
-		txtMsg += fmt.Sprintf("%d", receipt.ID)
+	txtMsg := fmt.Sprintf("درخواست شارژ شما با موفقیت ثبت شد. مشخصات سفارش:\n %s", chargeOrder.FullStr())
 
-		_, err2 := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: vars.Get("STORAGE_CHANNEL_ID"),
-			Text:   fmt.Sprintf("#CO%d\n#CR%d", chargeOrder.ID, receipt.ID),
-		})
-
-		return err2
-	})
-
-	if err != nil {
-		fmt.Println("Error: unable to save chargeOrder. err: ", err)
-		txtMsg = "خطایی پیش آمده"
-	}
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		Text:   txtMsg,
 		ChatID: form.ChatID,
 	})
+
+	msgTool.SendCryptoLink(ctx, b, form.ChatID, &chargeOrder)
 }
 
 func onCancelCharge(ctx context.Context, b *bot.Bot, update *tmodels.Update) {}
 
-func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
-	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
-		ChatID:     vars.Get("STORAGE_CHANNEL_ID"),
-		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
-		MessageID:  update.Message.ID,
-	})
+// func onChargeReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, form form.Form, setter form.FieldSetter) (bool, error) {
+// 	msg, err := b.ForwardMessage(ctx, &bot.ForwardMessageParams{
+// 		ChatID:     vars.Get("STORAGE_CHANNEL_ID"),
+// 		FromChatID: fmt.Sprintf("%d", update.Message.Chat.ID),
+// 		MessageID:  update.Message.ID,
+// 	})
 
-	if err != nil {
-		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
-		return false, fmt.Errorf("unable to forward receipt to storage channel. error: %s", err)
-	}
+// 	if err != nil {
+// 		fmt.Println("unable to forward receipt to storage channel\nerror:", err)
+// 		return false, fmt.Errorf("unable to forward receipt to storage channel. error: %s", err)
+// 	}
 
-	ok, strErr := setter(fmt.Sprintf("%d", msg.ID))
-	return ok, fmt.Errorf(strErr)
-}
+// 	ok, strErr := setter(fmt.Sprintf("%d", msg.ID))
+// 	return ok, fmt.Errorf(strErr)
+// }
 
 func onRetrieveReceipt(ctx context.Context, b *bot.Bot, update *tmodels.Update, pack models.Pack, config models.Config) {
 	db := database.GetDB()
@@ -473,4 +510,20 @@ func onSubmitOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 }
 
 func onCancelOrder(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
+}
+
+func createCoinsKeyboard(db *gorm.DB) [][]tmodels.InlineKeyboardButton {
+	var coins []paym.Coin
+	db.InnerJoins("JOIN crypto_wallets on coins.network=crypto_wallets.network").Where("coins.unit = 'USDT'").Where("crypto_wallets.status = 'active'").Find(&coins)
+	keyboard := [][]tmodels.InlineKeyboardButton{}
+	for _, coin := range coins {
+		keyboard = append(keyboard, []tmodels.InlineKeyboardButton{
+			{
+				Text:         coin.Name,
+				CallbackData: strconv.FormatUint(uint64(coin.ID), 10),
+			},
+		})
+	}
+
+	return keyboard
 }
