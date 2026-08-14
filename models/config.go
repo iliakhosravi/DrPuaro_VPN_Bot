@@ -511,13 +511,13 @@ func (c *Config) SyncMarz(db *gorm.DB) error {
 		return err
 	}
 
-	if user.Enabled {
+	if user.IsActive {
 		c.Order.Type = ActiveOrder
 	} else {
 		c.Order.Type = DepletedOrder
 	}
 
-	if user.DataLimit != 0 && user.RemainedTraffic() == 0 {
+	if user.DataLimit != 0 && user.RemainedTraffic() <= 0 {
 		c.Order.Type = DepletedOrder
 	}
 

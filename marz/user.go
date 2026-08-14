@@ -25,6 +25,7 @@ type User struct {
 	ExpireDate             *string `json:"expire_date,omitempty"`
 	ServiceIDs             []int   `json:"service_ids"`
 	Enabled                bool    `json:"enabled,omitempty"`
+	IsActive               bool    `json:"is_active,omitempty"`
 	Expired                bool    `json:"expired,omitempty"`
 	DataLimitReached       bool    `json:"data_limit_reached,omitempty"`
 	UsedTraffic            int64   `json:"used_traffic,omitempty"`
@@ -144,5 +145,5 @@ func (u User) RemainedTraffic() int {
 	if u.DataLimit == 0 {
 		return 0
 	}
-	return int(u.DataLimit-u.UsedTraffic) / ONE_MB
+	return int((u.DataLimit - u.UsedTraffic) / ONE_MB)
 }
