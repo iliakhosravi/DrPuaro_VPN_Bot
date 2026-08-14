@@ -62,9 +62,14 @@ func (config *Config) ShortLink(db *gorm.DB) (string, string) {
 		shortLinks, _ := panel.GetPanel().ShortLinksConfig(c.Title(db), client)
 		shortLink = shortLinks[0]
 	} else if c.Order.Pack.Type == SUIPack {
-		clientID, _ := strconv.Atoi(c.SubID)
-		shortLinks, _ := sui.GetSui().GetShortLinks(clientID)
-		shortLink = shortLinks[0]
+clientID, err := strconv.Atoi(c.SubID)
+if err != nil {
+	fmt.Println("error: invalid s-ui client id in SubID", err)
+} else if shortLinks, err := sui.GetSui().GetShortLinks(clientID); err != nil {
+	fmt.Println("error: unable to retrieve short links from s-ui", err)
+} else if len(shortLinks) > 0 {
+	shortLink = shortLinks[0]
+}
 	} else if c.Order.Pack.Type == MarzPack {
 		user, _ := c.GetMarzUser()
 		if user != nil {
