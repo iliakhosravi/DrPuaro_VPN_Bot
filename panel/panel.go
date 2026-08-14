@@ -1,6 +1,8 @@
 package panel
 
 import (
+	"sync"
+
 	"github.com/go-resty/resty/v2"
 	"techybat.org/go-vpn/vars"
 )
@@ -15,31 +17,49 @@ type Panel struct {
 }
 
 var (
-	panel *Panel
+	panel   *Panel
+	panelMu sync.RWMutex
 )
 
 func GetPanel() *Panel {
-	if panel == nil {
-		Setup()
+	panelMu.RLock()
+	current := panel
+	panelMu.RUnlock()
+
+	if current != nil {
+		return current
 	}
+
+	Setup()
+
+	panelMu.RLock()
+	defer panelMu.RUnlock()
 
 	return panel
 }
 
 func RevokePanel() {
+	panelMu.Lock()
+	defer panelMu.Unlock()
+
 	panel = nil
 }
 
 func Setup() {
 	username, password := vars.Get("PANEL_USERNAME"), vars.Get("PANEL_PASSWORD")
 	url := vars.Get("PANEL_URL")
-	panel = &Panel{
+	newPanel := &Panel{
 		client: resty.New(),
 	}
 
-	panel.client.SetBaseURL(url)
+	newPanel.client.SetBaseURL(url)
 
-	if err := panel.Login(username, password); err != nil {
+	if err := newPanel.Login(username, password); err != nil {
 		panic(err)
 	}
+
+	panelMu.Lock()
+	defer panelMu.Unlock()
+
+	panel = newPanel
 }
