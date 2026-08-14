@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-telegram/bot"
 	"gorm.io/gorm/clause"
 	"techybat.org/go-vpn/database"
+	"techybat.org/go-vpn/marz"
 	m "techybat.org/go-vpn/models"
+	"techybat.org/go-vpn/sui"
 )
 
 var (
@@ -57,6 +60,82 @@ func getNotifs() *Notifs {
 }
 
 func NotifyAll(ctx context.Context, b *bot.Bot) {
+	NotifySanaei(ctx, b)
+	NotifySUI(ctx, b)
+	NotifyMarz(ctx, b)
+}
+
+func NotifySUI(ctx context.Context, b *bot.Bot) {
+	db := database.GetDB()
+	var configs []m.Config
+	getNotifs()
+
+	orderQuery := db.Model(&m.Order{}).
+		Joins("inner join packs on orders.pack_id = packs.id").
+		Where("packs.type = ?", m.SUIPack).
+		Where("orders.type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).
+		Where("orders.id not in (?)", notifs.Depletions).
+		Select("orders.id")
+
+	db.Where("order_id in (?)", orderQuery).
+		Preload(clause.Associations).
+		Preload("Order.User").
+		Preload("Order.Pack").
+		Find(&configs)
+
+	for _, config := range configs {
+		s := sui.GetSui()
+		err := config.Sync(db)
+		if err != nil {
+			fmt.Println("Error: unable to sync config. err: ", err)
+			continue
+		}
+
+clientID, err := strconv.Atoi(config.SubID)
+if err != nil {
+	fmt.Println("Error: invalid client id in config.SubID: ", err)
+	continue
+}
+client, err := s.GetClientByID(clientID)
+if err != nil {
+	fmt.Println("Error: unable to retrieve client for notify all. err: ", err)
+	continue
+}
+		expiryTime := time.Unix(client.Expiry, 0)
+		duration := time.Until(expiryTime)
+		daysDuration := int(duration.Hours()) / 24
+		if !client.Enable {
+			notifyDepletion(ctx, b, config, duration.Hours() <= 0)
+			continue
+		}
+
+		if client.Expiry != 0 {
+			switch {
+			case duration.Hours() <= 0:
+				notifyDepletion(ctx, b, config, true)
+			case daysDuration <= 7:
+				notifyEndDays(ctx, b, config, daysDuration)
+			}
+		}
+
+		switch {
+		case client.RemainedTraffic() <= 0:
+			if config.Order.Pack.Traffic == 0 {
+				continue
+			}
+			notifyDepletion(ctx, b, config, false)
+		case client.RemainedTraffic() <= 200:
+			notifyRemainedTraffic(ctx, b, config, 200)
+		case client.RemainedTraffic() <= 500:
+			notifyRemainedTraffic(ctx, b, config, 500)
+		case client.RemainedTraffic() <= 1000:
+			notifyRemainedTraffic(ctx, b, config, 1000)
+		}
+	}
+	saveNotifs()
+}
+
+func NotifySanaei(ctx context.Context, b *bot.Bot) {
 	db := database.GetDB()
 	var configs []m.Config
 	getNotifs()
@@ -76,13 +155,15 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 		duration := time.Until(endTime)
 		daysDuration := int(duration.Hours()) / 24
 		notified := false
-		switch {
-		case duration.Hours() <= 0:
-			notifyDepletion(ctx, b, config, true)
-			notified = true
+		if client.ExpiryTime != 0 {
+			switch {
+			case duration.Hours() <= 0:
+				notifyDepletion(ctx, b, config, true)
+				notified = true
 
-		case daysDuration <= 7:
-			notifyEndDays(ctx, b, config, daysDuration)
+			case daysDuration <= 7:
+				notifyEndDays(ctx, b, config, daysDuration)
+			}
 		}
 
 		if !notified {
@@ -103,6 +184,66 @@ func NotifyAll(ctx context.Context, b *bot.Bot) {
 		}
 
 		config.SyncByClient(db, client)
+	}
+	saveNotifs()
+}
+
+func NotifyMarz(ctx context.Context, b *bot.Bot) {
+	db := database.GetDB()
+	var configs []m.Config
+	getNotifs()
+
+	packQuery := db.Model(&m.Pack{}).Select("id").Where("type = ?", m.MarzPack)
+	orderQuery := db.Model(&m.Order{}).Select("id").
+		Where("pack_id in (?)", packQuery).
+		Where("type in (?)", []string{string(m.ActiveOrder), string(m.DepletedOrder)}).
+		Where("id not in (?)", notifs.Depletions)
+
+	db.Where("order_id in (?)", orderQuery).
+		Preload(clause.Associations).
+		Preload("Order.User").
+		Preload("Order.Pack").
+		Find(&configs)
+
+	mz := marz.GetMarz()
+	for _, config := range configs {
+		user, err := mz.GetUser(config.Email)
+		if err != nil {
+			fmt.Println("Error: unable to retrieve user for notify all. err: ", err)
+			continue
+		}
+
+		notified := false
+		if user.ExpireDate != nil {
+			expireDate, err := time.Parse("2006-01-02T15:04:05.999999", *user.ExpireDate)
+			if err == nil {
+				duration := time.Until(expireDate)
+				daysDuration := int(duration.Hours()) / 24
+				switch {
+				case duration.Hours() <= 0:
+					notifyDepletion(ctx, b, config, true)
+					notified = true
+				case daysDuration <= 7:
+					notifyEndDays(ctx, b, config, daysDuration)
+				}
+			}
+		}
+
+		if !notified && user.DataLimit != 0 {
+			remainedTraffic := user.RemainedTraffic()
+			switch {
+			case remainedTraffic <= 0:
+				notifyDepletion(ctx, b, config, false)
+			case remainedTraffic <= 200:
+				notifyRemainedTraffic(ctx, b, config, 200)
+			case remainedTraffic <= 500:
+				notifyRemainedTraffic(ctx, b, config, 500)
+			case remainedTraffic <= 1000:
+				notifyRemainedTraffic(ctx, b, config, 1000)
+			}
+		}
+
+		config.SyncMarz(db)
 	}
 	saveNotifs()
 }

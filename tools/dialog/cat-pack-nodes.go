@@ -61,7 +61,7 @@ func CreateCatPackNodes(db *gorm.DB, packHandler bot.HandlerFunc) []dialog.Node 
 
 			packNode := dialog.Node{
 				ID:       packNodeID,
-				Text:     bot.EscapeMarkdown(fmt.Sprintf("لطفا بسته مورد نظر خود را انتخاب کنید.\nدسته بندی: %s\nتوضیحات: %s\nمدت: %d روزه", category.Name, category.Description, period)),
+				Text:     bot.EscapeMarkdown(fmt.Sprintf("لطفا بسته مورد نظر خود را انتخاب کنید.\nدسته بندی: %s\nتوضیحات: %s\nمدت: %s", category.Name, category.Description, models.StringPeriod(period))),
 				Keyboard: make([][]dialog.Button, 0),
 			}
 

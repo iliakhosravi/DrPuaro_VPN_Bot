@@ -91,8 +91,8 @@ func showOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 	}); err != nil {
 		fmt.Println("Error for show order handler: ", err)
 	}
-	msgTool.SendCryptoLink(ctx, b, chatID, &order)
-	msgTool.SendSubLink(ctx, b, chatID, order)
+
+	msgTool.SendPanelSubLink(ctx, b, chatID, order)
 }
 
 func showDepletedOrderHandler(ctx context.Context, b *bot.Bot, update *tmodels.Update) {

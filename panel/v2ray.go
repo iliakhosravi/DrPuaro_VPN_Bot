@@ -88,7 +88,7 @@ func (panel *Panel) SubLink(client Client) (string, error) {
 }
 
 func PanelSubLinkFromSubID(subID string) (string, error) {
-	link, err := url.JoinPath(fmt.Sprintf("https://%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_SUB_PATH"), subID))
+	link, err := url.JoinPath(fmt.Sprintf("%s:%s/%s/%s", vars.Get("PANEL_SUB_URL"), vars.Get("PANEL_SUB_PORT"), vars.Get("PANEL_SUB_PATH"), subID))
 	if err != nil {
 		return "", err
 	}

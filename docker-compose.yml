@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASS}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASS}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  bot:
+    image: techybot:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      HTTP_PROXY: http://proxy:2080
+      HTTPS_PROXY: http://proxy:2080
+      MYSQL_HOST: db
+    volumes:
+      - ./notifs.json:/app/notifs.json
+      - ./qr:/app/qr
+      - ./backup:/app/backup
+    # ports:
+    # - "${SUB_PORT}:${SUB_PORT}"
+    restart: unless-stopped
+
+  proxy:
+    image: sagernet/sing-box:latest
+    restart: always
+    volumes:
+      - ./sing-box:/etc/sing-box/
+    command: -D /var/lib/sing-box -C /etc/sing-box/ run
