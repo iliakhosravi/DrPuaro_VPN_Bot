@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"techybat.org/go-vpn/models"
 	"techybat.org/go-vpn/vars"
@@ -24,15 +24,20 @@ func Setup() {
 
 func GetDB() *gorm.DB {
 	dbOnce.Do(func() {
-		// refer https://github.com/go-sql-driver/mysql#dsn-data-source-name for details
-		user := vars.Get("MYSQL_USER")
-		pass := vars.Get("MYSQL_PASS")
-		host := vars.Get("MYSQL_HOST")
-		port := vars.Get("MYSQL_PORT")
-		dbname := vars.Get("MYSQL_DB")
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port, dbname)
+		// refer https://pkg.go.dev/gorm.io/driver/postgres for DSN details
+		user := vars.Get("POSTGRES_USER")
+		pass := vars.Get("POSTGRES_PASS")
+		host := vars.Get("POSTGRES_HOST")
+		port := vars.Get("POSTGRES_PORT")
+		dbname := vars.Get("POSTGRES_DB")
+		sslmode := vars.Get("POSTGRES_SSLMODE")
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=UTC",
+			host, port, user, pass, dbname, sslmode)
 
-		dbInstance, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		dbInstance, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err != nil {
 			log.Fatalln("Cannot connect to database. Err: ", err)
 		}

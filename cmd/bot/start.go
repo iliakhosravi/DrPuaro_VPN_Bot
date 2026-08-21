@@ -38,7 +38,7 @@ func Start(ctx context.Context, cancel context.CancelFunc) {
 	telegramBotToken := vars.Get("TELEGRAM_BOT_TOKEN")
 
 	opts := []bot.Option{
-		bot.WithMiddlewares(auth.UserMiddleware, auth.TrustedMiddleware),
+		bot.WithMiddlewares(auth.UserMiddleware, auth.ChannelMembershipMiddleware),
 		bot.WithDefaultHandler(main2.MainController),
 		bot.WithMessageTextHandler("/admin", bot.MatchTypeExact, auth.AdminMiddleware(admin_menu.AdminController)),
 	}

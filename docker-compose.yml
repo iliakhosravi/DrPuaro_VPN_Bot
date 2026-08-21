@@ -2,20 +2,19 @@ version: "3.9"
 
 services:
   db:
-    image: mysql:8.0
+    image: postgres:16-alpine
     env_file:
       - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASS}
-      MYSQL_DATABASE: ${MYSQL_DB}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASS}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "${POSTGRES_PORT}:5432"
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - ./postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       timeout: 20s
       retries: 10
 
@@ -29,7 +28,7 @@ services:
     environment:
       HTTP_PROXY: http://proxy:2080
       HTTPS_PROXY: http://proxy:2080
-      MYSQL_HOST: db
+      POSTGRES_HOST: db
     volumes:
       - ./notifs.json:/app/notifs.json
       - ./qr:/app/qr
@@ -38,9 +37,9 @@ services:
     # - "${SUB_PORT}:${SUB_PORT}"
     restart: unless-stopped
 
-  proxy:
-    image: sagernet/sing-box:latest
-    restart: always
-    volumes:
-      - ./sing-box:/etc/sing-box/
-    command: -D /var/lib/sing-box -C /etc/sing-box/ run
+  # proxy:
+  #   image: sagernet/sing-box:latest
+  #   restart: always
+  #   volumes:
+  #     - ./sing-box:/etc/sing-box/
+  #   command: -D /var/lib/sing-box -C /etc/sing-box/ run

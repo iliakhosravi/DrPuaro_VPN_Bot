@@ -15,7 +15,8 @@ RUN go build -o /app/govpn
 FROM alpine:latest
 
 # We already added this in your original file, which is correct.
-RUN apk add --no-cache ca-certificates
+# postgresql-client provides pg_dump, used by the Telegram-channel backup job.
+RUN apk add --no-cache ca-certificates postgresql-client
 
 WORKDIR /app
 

@@ -10,7 +10,7 @@ configs. It supports two backend VPN panel types:
 - **Sanaei / 3x-ui** — managed via the `panel/` package.
 - **S-UI** — managed via the `sui/` package.
 
-A MySQL database (via GORM) stores users, orders, packs, and configs. Subscription links are
+A PostgreSQL database (via GORM) stores users, orders, packs, and configs. Subscription links are
 fetched directly from the VPN panels (Sanaei/S-UI); the bot no longer self-hosts a subscription
 endpoint. The bot also runs scheduled notification/maintenance jobs.
 
@@ -49,10 +49,34 @@ When adding a new CLI entry point, follow the existing pattern: a `*cobra.Comman
 - When adding a new config value: add it to `.env.example` with a placeholder, and read it via
   `vars.Get("NEW_KEY")` — do not read `os.Getenv` directly elsewhere.
 
+## Access control
+
+- All Telegram users can start the bot — there is no more first-contact allowlist. The only gate
+  is `auth.ChannelMembershipMiddleware` (`middlewares/auth/auth.go`), wired into
+  `bot.WithMiddlewares` in `cmd/bot/start.go`. On every update it calls Telegram's
+  `GetChatMember` for `REQUIRED_CHANNEL_USERNAME` (e.g. `@drpuaro_net`) and blocks users who
+  aren't members, showing a join-channel prompt (link to `REQUIRED_CHANNEL_LINK` + a "بررسی
+  عضویت" recheck button wired through the `dialog` package, same pattern as the rest of the UI).
+  If `REQUIRED_CHANNEL_USERNAME` is unset, or the `GetChatMember` call errors (e.g. the bot isn't
+  a member/admin of that channel yet), the middleware fails open and lets the update through —
+  don't change that without discussing it, it's what stops a misconfigured deployment from
+  bricking the bot for everyone.
+- **Operational requirement:** the bot account must be a member (in practice: an admin) of
+  `REQUIRED_CHANNEL_USERNAME`, or every `GetChatMember` call errors and the gate silently no-ops
+  (fail-open, see above).
+- `auth.TrustedMiddleware` and the `ONLY_TRUSTED_USERS` / "افزودن کاربر معتمد" (add trusted user)
+  admin feature still exist in the code but are no longer wired into the default middleware
+  chain — don't assume `ONLY_TRUSTED_USERS=true` restricts anything today.
+
 ## Database
 
-- `database.Setup()` = `database.GetDB()` (singleton MySQL connection via `gorm.io/driver/mysql`,
-  pool tuned: 100 max open / 10 idle / 1h lifetime) + `MigrateAll(db)`.
+- `database.Setup()` = `database.GetDB()` (singleton PostgreSQL connection via
+  `gorm.io/driver/postgres`, pool tuned: 100 max open / 10 idle / 1h lifetime) + `MigrateAll(db)`.
+  Connection params come from `POSTGRES_USER`/`POSTGRES_PASS`/`POSTGRES_HOST`/`POSTGRES_PORT`/
+  `POSTGRES_DB`/`POSTGRES_SSLMODE` (defaults to `disable`).
+- The Telegram-channel backup cron (`tools/message/backup.go` → `database.DumpPostgres`) shells
+  out to `pg_dump`, not a hand-rolled dumper — the runtime image must have `postgresql-client`
+  installed (see `Dockerfile`) or backups will fail with "pg_dump not found in PATH".
 - **No migration files** — every model implements `Migrate(db) error` (just `db.AutoMigrate(&T{})`)
   and `MigrateAll` calls them all. If you add a new model, add it to `database.MigrateAll` and give
   it a `Migrate` method matching the existing `Model` interface in `models/base.go`.
@@ -114,8 +138,8 @@ Also scheduled: `panel.Setup` every 30m, a backup-to-Telegram-channel job every 
 
 - `Dockerfile`: two-stage build (`golang:1.25.3-alpine` builder → `alpine:latest` runtime),
   entrypoint `/app/govpn start`.
-- `docker-compose.yml`: services `db` (mysql:8.0), `bot` (this app), `proxy` (`sagernet/sing-box`,
-  config mounted from `./sing-box`).
+- `docker-compose.yml`: services `db` (postgres:16-alpine), `bot` (this app), `proxy`
+  (`sagernet/sing-box`, config mounted from `./sing-box`).
 - No Makefile. Standard Go tooling: `go build ./...`, `go vet ./...`, `go run . start`.
 
 ## Testing

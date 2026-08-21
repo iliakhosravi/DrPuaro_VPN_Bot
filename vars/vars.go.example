@@ -17,11 +17,12 @@ func Setup() {
 			"TG_CHANNEL":         "@FastVPN",
 			"MAIN_KB_INLINE":     "false",
 			"TELEGRAM_BOT_TOKEN": "",
-			"MYSQL_USER":         "root",
-			"MYSQL_PASS":         "root",
-			"MYSQL_HOST":         "localhost",
-			"MYSQL_PORT":         "3306",
-			"MYSQL_DB":           "vpn",
+			"POSTGRES_USER":    "postgres",
+			"POSTGRES_PASS":    "postgres",
+			"POSTGRES_HOST":    "localhost",
+			"POSTGRES_PORT":    "5432",
+			"POSTGRES_DB":      "vpn",
+			"POSTGRES_SSLMODE": "disable",
 
 			"STORAGE_CHANNEL_ID":     "@exampletest",
 			"DEFAULT_ADMIN_USERNAME": "admin",
@@ -35,6 +36,9 @@ func Setup() {
 			"PANEL_PASSWORD":      "admin",
 			"CONFIG_HOST":         "example.org",
 			"ONLY_TRUSTED_USERS":  "false",
+
+			"REQUIRED_CHANNEL_USERNAME": "@drpuaro_net",
+			"REQUIRED_CHANNEL_LINK":     "https://t.me/drpuaro_net",
 
 			"SUB_URL":           "localhost",
 			"SUB_PORT":          "2087",

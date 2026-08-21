@@ -17,3 +17,5 @@ vars/vars.go
 .env.ultra
 temp
 sing-box
+/postgres_data
+/mysql_data
