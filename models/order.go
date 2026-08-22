@@ -231,7 +231,7 @@ func (order *Order) ChangeType(db *gorm.DB, orderType OrderType) error {
 	return fmt.Errorf("error: order.ChangeType, order type is not supported")
 }
 
-func (orderType OrderType) String() string {
+func (orderType OrderType) Fa() string {
 	switch orderType {
 	case SentOrder:
 		return "در انتظار ارسال رسید توسط کاربر"
@@ -347,7 +347,7 @@ func (o *Order) NormalStr(db *gorm.DB) string {
 		if err != nil {
 			remainedTrafficStr = "N/A"
 		}
-		txtMsg = fmt.Sprintf("شماره سفارش: %d\nشماره کانفیگ:%d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s\nتاریخ اتمام دوره:%s", order.ID, config.ID, order.Type, order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr)
+		txtMsg = fmt.Sprintf("شماره سفارش: %d\nشماره کانفیگ:%d\nوضعیت سفارش: %s\nگروه بسته: %s\nنوع بسته: %s\nتاریخ درخواست: %s\nتوضیحات ادمین: %s\nتاریخ تایید بسته: %s\nحجم باقی مانده: %s\nتاریخ اتمام دوره:%s", order.ID, config.ID, order.Type.Fa(), order.Pack.Category.Name, order.Pack, orderDate, order.AdminNote, startDate, remainedTrafficStr, endDateStr)
 	} else {
 		pt := ptime.New(order.CreatedAt)
 		showDate := pt.Format("d MMM y")
