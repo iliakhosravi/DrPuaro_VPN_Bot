@@ -188,10 +188,10 @@ func (order *ChargeOrder) FullStr() string {
 	dateFormat := "d MMM y"
 	orderDate := ptime.New(order.CreatedAt).Format(dateFormat)
 	updateOrderDate := ptime.New(order.UpdatedAt).Format(dateFormat)
-	return fmt.Sprintf("میزان شارژ: %s دلار\nتاریخ درخواست: %s\nیادداشت ادمین: %s\nوضعیت: %s\nتاریخ آخرین تغییرات: %s", order.Amount.Decimal, orderDate, order.AdminNote, order.Type, updateOrderDate)
+	return fmt.Sprintf("میزان شارژ: %s دلار\nتاریخ درخواست: %s\nیادداشت ادمین: %s\nوضعیت: %s\nتاریخ آخرین تغییرات: %s", order.Amount.Decimal, orderDate, order.AdminNote, order.Type.Fa(), updateOrderDate)
 }
 
-func (chargeType ChargeType) String() string {
+func (chargeType ChargeType) Fa() string {
 	switch chargeType {
 	case PendingCharge:
 		return "در انتظار تایید"

@@ -133,7 +133,7 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status.Fa())
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -178,7 +178,7 @@ func PackValidator(fieldName string) form.Validator {
 	}
 }
 
-func (ps PackStatus) String() string {
+func (ps PackStatus) Fa() string {
 	switch ps {
 	case ActivePack:
 		return "فعال"

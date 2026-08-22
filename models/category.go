@@ -55,10 +55,10 @@ func (cat *Category) Deactive(db *gorm.DB) error {
 }
 
 func (cat *Category) String() string {
-	return fmt.Sprintf("مشخصات دسته بندی به شرح زیر است:\nنام: %s\nجزئیات: %s\nوضعیت: %s", cat.Name, cat.Description, cat.Status)
+	return fmt.Sprintf("مشخصات دسته بندی به شرح زیر است:\nنام: %s\nجزئیات: %s\nوضعیت: %s", cat.Name, cat.Description, cat.Status.Fa())
 }
 
-func (cs CategoryStatus) String() string {
+func (cs CategoryStatus) Fa() string {
 	switch cs {
 	case ActiveCat:
 		return "فعال"
