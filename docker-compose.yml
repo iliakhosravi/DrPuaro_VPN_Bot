@@ -19,7 +19,7 @@ services:
       retries: 10
 
   bot:
-    image: techybot:latest
+    image: ghcr.io/iliakhosravi/vpn-bot:latest
     depends_on:
       db:
         condition: service_healthy
