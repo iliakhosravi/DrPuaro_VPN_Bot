@@ -43,6 +43,7 @@ type Pack struct {
 	LimitIP    uint       `json:"limit_ip" gorm:"default:0"`
 	ClientName string     `json:"client_name" gorm:"default:null"` //SUI Only
 	ServiceID  int        `json:"service_id" gorm:"default:-1"`    //Marzneshin Only
+	IsTest     bool       `json:"is_test" gorm:"default:false"`    //Free trial pack — see GetTestPack
 }
 
 func (pack *Pack) Migrate(db *gorm.DB) {
@@ -50,7 +51,22 @@ func (pack *Pack) Migrate(db *gorm.DB) {
 }
 
 func GetActivePacksByCatID(db *gorm.DB, packs *[]Pack, catID uint) {
-	db.Preload(clause.Associations).Preload("Currency").Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
+	db.Preload(clause.Associations).Preload("Currency").
+		Where("is_test = ?", false).
+		Find(&packs, Pack{CategoryID: catID, Status: ActivePack})
+}
+
+func GetTestPack(db *gorm.DB) (*Pack, error) {
+	var pack Pack
+	res := db.Preload(clause.Associations).Preload("Currency").
+		Where("is_test = ? AND status = ?", true, ActivePack).
+		Order("created_at desc").
+		First(&pack)
+
+	if res.Error != nil || res.RowsAffected == 0 {
+		return nil, fmt.Errorf("no active test pack is configured")
+	}
+	return &pack, nil
 }
 
 func (pack Pack) Name() string {
@@ -133,7 +149,11 @@ func (pack Pack) ConfigDesc() string {
 }
 
 func (pack Pack) FullStr() string {
-	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status)
+	testStr := "خیر"
+	if pack.IsTest {
+		testStr = "بله"
+	}
+	return fmt.Sprintf("عنوان: %s\nدسته بندی:%s\nترافیک: %s\nدوره زمانی: %d روز\nمحدودیت کاربر: %s\nقیمت: %s %s\nوضعیت: %s\nبسته تست: %s", pack.Name(), pack.Category.Name, pack.TrafficName(), pack.Period, pack.UserLimitStr(), pack.GetPrice(), pack.Currency.Unit, pack.Status, testStr)
 }
 
 func (pack *Pack) Active(db *gorm.DB) error {
@@ -150,6 +170,16 @@ func (pack *Pack) Store(db *gorm.DB) error {
 	if result := db.Save(pack); result.RowsAffected == 0 {
 		return fmt.Errorf("error: unable to store pack. Details: %s", result.Error)
 	}
+
+	if pack.IsTest {
+		if res := db.Model(&Pack{}).
+			Where("id <> ?", pack.ID).
+			Where("is_test = ?", true).
+			Update("is_test", false); res.Error != nil {
+			return fmt.Errorf("error: unable to clear previous test pack. Details: %s", res.Error)
+		}
+	}
+
 	return nil
 }
 
@@ -171,6 +201,10 @@ func PackValidator(fieldName string) form.Validator {
 			}
 		case "limitIP":
 			_, err = strconv.ParseUint(value, 10, 0)
+		case "is_test":
+			if value != "true" && value != "false" {
+				err = fmt.Errorf("is_test must be true or false")
+			}
 		default:
 			_, err = strconv.Atoi(value)
 		}

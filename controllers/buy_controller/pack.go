@@ -74,6 +74,13 @@ func AddPackController(ctx context.Context, b *bot.Bot, update *tmodels.Update) 
 			Validator:   models.PackValidator("type"),
 		},
 		{
+			Name:        "is_test",
+			MessageText: "آیا این بسته، بسته کانفیگ تست رایگان است؟\n(بسته تست در لیست خرید نمایش داده نمی‌شود و هر کاربر فقط یک بار می‌تواند آن را دریافت کند)",
+			Type:        form.ButtonField,
+			Keyboard:    makeTestKeyboard(),
+			Validator:   models.PackValidator("is_test"),
+		},
+		{
 			Name:        "client_name",
 			MessageText: "نام کلاینتی که کانفیگ ها بر پایه آن ساخته می‌شود را وارد کنید.(برای پنل S-UI)",
 			IsSkippable: true,
@@ -106,6 +113,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 	packType := models.PackType(form.FindField("type").Value)
 	clientName := form.FindField("client_name").Value
 	title := form.FindField("title").Value
+	isTest := form.FindField("is_test").Value == "true"
 
 	pack := models.Pack{
 		Traffic:    traffic,
@@ -117,6 +125,7 @@ func packSubmitController(ctx context.Context, b *bot.Bot, update *tmodels.Updat
 		LimitIP:    uint(limitIP),
 		ClientName: clientName,
 		CurrencyID: uint(currencyID),
+		IsTest:     isTest,
 	}
 
 	if pack.Type == models.SanaeiPack {
@@ -434,6 +443,15 @@ func onEditPack(ctx context.Context, b *bot.Bot, update *tmodels.Update) {
 			IsSkippable: true,
 			Value:       string(pack.Type),
 		},
+		{
+			Name:        "is_test",
+			MessageText: fmt.Sprintf("آیا این بسته، بسته کانفیگ تست رایگان است؟\n(بسته تست در لیست خرید نمایش داده نمی‌شود و هر کاربر فقط یک بار می‌تواند آن را دریافت کند)\nمقدار فعلی: %v", pack.IsTest),
+			Type:        form.ButtonField,
+			Keyboard:    makeTestKeyboard(),
+			Validator:   models.PackValidator("is_test"),
+			IsSkippable: true,
+			Value:       fmt.Sprint(pack.IsTest),
+		},
 	}
 	form := form.CreateForm("انصراف", fields, chatID, update.CallbackQuery.From.ID, passPack(onEditPackSubmit, pack), onCancelPack, nil)
 	form.SkipButtonText = "مقدار فعلی"
@@ -465,6 +483,21 @@ func makeTypeKeyboard() [][]tmodels.InlineKeyboardButton {
 			{
 				Text:         "مرزنشین",
 				CallbackData: string(models.MarzPack),
+			},
+		},
+	}
+}
+
+func makeTestKeyboard() [][]tmodels.InlineKeyboardButton {
+	return [][]tmodels.InlineKeyboardButton{
+		{
+			{
+				Text:         "خیر (بسته عادی)",
+				CallbackData: "false",
+			},
+			{
+				Text:         "بله (بسته تست رایگان)",
+				CallbackData: "true",
 			},
 		},
 	}
@@ -520,6 +553,7 @@ func onEditPackSubmit(ctx context.Context, b *bot.Bot, update *tmodels.Update, p
 	pack.Title = form.FindField("title").Value
 	pack.LimitIP = uint(limitIP)
 	pack.CurrencyID = uint(currencyID)
+	pack.IsTest = form.FindField("is_test").Value == "true"
 
 	if err == nil {
 		pack.CategoryID = uint(categoryID)

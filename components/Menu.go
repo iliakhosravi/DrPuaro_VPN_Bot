@@ -29,7 +29,9 @@ func BuildMainKeyboard(b *bot.Bot) {
 		Button("👨‍💻بسته ها", b, bot.MatchTypeExact, handleBuyList).
 		Row().
 		Button("💰کیف پول", b, bot.MatchTypeExact, customerController.BalanceHandler).
-		Button("💳 شارژ اکانت", b, bot.MatchTypeExact, buy_controller.ChargeHandler)
+		Button("💳 شارژ اکانت", b, bot.MatchTypeExact, buy_controller.ChargeHandler).
+		Row().
+		Button("🎁 کانفیگ تست رایگان", b, bot.MatchTypeExact, customerController.TestConfigHandler)
 
 	addGuideBtnsToReply(b)
 }

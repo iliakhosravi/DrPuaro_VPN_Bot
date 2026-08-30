@@ -79,6 +79,9 @@ func NewMainDialog() []dialog.Node {
 					{ID: "balance", Text: "کیف پول", CallbackHandler: customerController.BalanceHandler},
 					{ID: "charge-account", Text: "شارژ اکانت", CallbackHandler: buy_controller.ChargeHandler},
 				},
+				{
+					{ID: "test-config", Text: "🎁 کانفیگ تست رایگان", CallbackHandler: customerController.TestConfigHandler},
+				},
 			},
 		},
 
