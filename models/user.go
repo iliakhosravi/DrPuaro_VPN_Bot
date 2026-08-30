@@ -318,7 +318,7 @@ func (user *User) RetrieveOrders(db *gorm.DB, orderTypes []OrderType, preloads .
 	return orders
 }
 
-func (ut UserType) String() string {
+func (ut UserType) Fa() string {
 	switch ut {
 	case AdminUser:
 		return "ادمین"
@@ -328,7 +328,7 @@ func (ut UserType) String() string {
 }
 
 func (user *User) String() string {
-	return fmt.Sprintf("آیدی تلگرام: %d\nنام: %s\nنام خانوادگی: %s\nنام کاربری: %s\nنوع: %s\n", user.TelID, user.FirstName, user.LastName, user.Username, user.Type)
+	return fmt.Sprintf("آیدی تلگرام: %d\nنام: %s\nنام خانوادگی: %s\nنام کاربری: %s\nنوع: %s\n", user.TelID, user.FirstName, user.LastName, user.Username, user.Type.Fa())
 }
 
 func UserIDValidator(db *gorm.DB) form.Validator {
