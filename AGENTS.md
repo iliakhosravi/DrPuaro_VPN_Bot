@@ -91,6 +91,29 @@ When adding a new CLI entry point, follow the existing pattern: a `*cobra.Comman
   adding panel-type-specific behavior, follow this "wrapper dispatches on `Pack.Type`, per-type
   method does the work" pattern rather than adding `if` branches inline everywhere.
 
+## Free trial ("کانفیگ تست")
+
+- The trial is **not hardcoded** — it is an ordinary `Pack` row with `IsTest = true`
+  (`models/pack.go`). An admin creates it through the normal "افزودن بسته" flow, which means
+  its traffic, period, user limit, pack type and panel inbound/service are all configurable
+  from the bot without code changes. `Pack.Store` enforces "only one trial pack" by clearing
+  `is_test` on every other pack whenever a pack is saved with the flag set.
+- `models.GetTestPack(db)` returns the active trial pack; `GetActivePacksByCatID` explicitly
+  excludes `is_test` packs so the trial never shows up in the paid catalog.
+- `User.TakeTestPack` (`models/user.go`) creates a zero-cost `Order` with `IsTest = true` and
+  immediately calls `Order.Verify`, which provisions on whichever panel the trial pack points
+  at. No wallet balance is touched and no admin approval is involved — it's instant.
+- One trial per user forever, enforced by `User.HasUsedTest` counting orders with
+  `is_test = true`. The flag lives on the **order**, not derived from the pack, so the record
+  stays accurate even if the admin later re-flags a different pack as the trial.
+- Entry points: `customerController.TestConfigHandler` (`controllers/customer/test.go`), wired
+  into both the reply keyboard (`components/Menu.go`) and the inline main menu
+  (`controllers/main_controller/main.go`). It addresses the user by `TelID` rather than
+  reading `update.Message`/`update.CallbackQuery`, because it is reachable from both — follow
+  that pattern for any other dual-entry handler.
+- Admins can review who took trials via `/admin` → "لیست سفارشات" → "🎁 کانفیگ های تست"
+  (`adminController.TestOrdersHandler`).
+
 ## Panel abstraction
 
 - `panel/` (Sanaei/3x-ui): `panel.GetPanel()` singleton client; `Client`/`ClientForm` in

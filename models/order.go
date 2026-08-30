@@ -45,6 +45,7 @@ type Order struct {
 	HandlerID string    `json:"-"`
 	AdminNote string    `json:"admin_note"`
 	InvoiceID uint      `json:"invoice_id" gorm:"default:0"`
+	IsTest bool `json:"is_test" gorm:"default:false"`
 }
 
 func (order *Order) Migrate(db *gorm.DB) {

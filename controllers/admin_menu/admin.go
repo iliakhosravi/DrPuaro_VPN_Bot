@@ -126,6 +126,9 @@ func NewAdminDialog(ctx context.Context) []dialog.Node {
 					{ID: "dismissed-orders", Text: "بسته های رد شده", CallbackHandler: adminController.OrdersHandler, CallbackData: string(models.DismissedOrder)},
 				},
 				{
+					{ID: "test-orders", Text: "🎁 کانفیگ های تست", CallbackHandler: auth.AdminMiddleware(adminController.TestOrdersHandler)},
+				},
+				{
 					{Text: "بازگشت", NodeID: "admin-panel"},
 				},
 			},

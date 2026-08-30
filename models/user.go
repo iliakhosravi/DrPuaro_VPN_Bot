@@ -242,6 +242,47 @@ func (user *User) BuyPackByCharge(db *gorm.DB, pack *Pack) (*Order, error) {
 	return &order, err
 }
 
+func (user *User) HasUsedTest(db *gorm.DB) bool {
+	var count int64
+	db.Model(&Order{}).Where("user_id = ? AND is_test = ?", user.ID, true).Count(&count)
+	return count > 0
+}
+
+func (user *User) TakeTestPack(db *gorm.DB, pack *Pack) (*Order, error) {
+	if user.HasUsedTest(db) {
+		return nil, fmt.Errorf("user %d has already used their test config", user.TelID)
+	}
+
+	var order Order
+	err := db.Transaction(func(tx *gorm.DB) error {
+		order = Order{
+			UserID: user.ID,
+			PackID: pack.ID,
+			Type:   ActiveOrder,
+			IsTest: true,
+		}
+
+		if err := order.CreateOrder(tx); err != nil {
+			return err
+		}
+
+		if err := order.Verify(tx, "کانفیگ تست رایگان", ""); err != nil {
+			return err
+		}
+
+		if pack.Type == CustomPack {
+			order.Type = PendLinkOrder
+			if res := tx.Save(&order); res.Error != nil {
+				return res.Error
+			}
+		}
+
+		return nil
+	})
+
+	return &order, err
+}
+
 func (user *User) MakeAdmin(db *gorm.DB) error {
 	user.Type = AdminUser
 	if result := db.Save(user); result.RowsAffected == 0 {
